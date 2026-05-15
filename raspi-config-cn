@@ -57,7 +57,7 @@ else
   CMDLINE=/proc/cmdline
 fi
 
-# tests for Pi 1, 2 and 0 all test for specific boards...
+# 针对 Pi 1、2 和 0 的测试都是针对特定板子的...
 
 is_pione() {
   if grep -q "^Revision\s*:\s*00[0-9a-fA-F][0-9a-fA-F]$" /proc/cpuinfo; then
@@ -79,7 +79,7 @@ is_pizero() {
   return $?
 }
 
-# ...while tests for Pi 3 and 4 just test processor type, so will also find CM3, CM4, Zero 2 etc.
+# ...而针对 Pi 3 和 4 的测试只是测试处理器类型，因此也会找到 CM3、CM4、Zero 2 等。
 
 is_pithree() {
   grep -q "^Revision\s*:\s*[ 123][0-9a-fA-F][0-9a-fA-F]2[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]$" /proc/cpuinfo
@@ -138,7 +138,7 @@ is_live() {
 }
 
 is_ssh() {
-  if pstree -p | grep -qE ".*sshd.*\($$\)"; then
+  if pstree -p | grep -qE ".*sshd.*\($\)"; then
     return 0
   else
     return 1
@@ -222,9 +222,9 @@ can_configure() {
 }
 
 calc_wt_size() {
-  # NOTE: it's tempting to redirect stderr to /dev/null, so supress error
-  # output from tput. However in this case, tput detects neither stdout or
-  # stderr is a tty and so only gives default 80, 24 values
+  # 注意：虽然将 stderr 重定向到 /dev/null 很诱人，以抑制 tput 的错误输出。
+  # 但在这种情况下，tput 检测到 stdout 和 stderr 都不是 tty，
+  # 因此只给出默认的 80, 24 值
   WT_HEIGHT=18
   WT_WIDTH=$(tput cols)
 
@@ -239,10 +239,9 @@ calc_wt_size() {
 
 do_about() {
   whiptail --msgbox "\
-This tool provides a straightforward way of doing initial
-configuration of the Raspberry Pi. Although it can be run
-at any time, some of the options may have difficulties if
-you have heavily customised your installation.
+此工具提供了一种简单直接的方式来进行树莓派的初始配置。
+虽然可以随时运行，但如果您已经对系统进行了大量自定义，
+某些选项可能会遇到困难。
 
 $(dpkg -s raspi-config 2> /dev/null | grep Version)\
 " 20 70 1
@@ -276,15 +275,15 @@ do_expand_rootfs() {
 
   LAST_PART_NUM=$(parted "$ROOT_DEV" -ms unit s p | tail -n 1 | cut -f 1 -d:)
   if [ "$LAST_PART_NUM" -ne "$PART_NUM" ]; then
-    whiptail --msgbox "$ROOT_PART is not the last partition. Don't know how to expand" 20 60 2
+    whiptail --msgbox "$ROOT_PART 不是最后一个分区。不知道如何扩展" 20 60 2
     return 0
   fi
 
-  # Get the starting offset of the root partition
+  # 获取根分区的起始偏移量
   PART_START=$(parted "$ROOT_DEV" -ms unit s p | grep "^${PART_NUM}" | cut -f 2 -d: | sed 's/[^0-9]//g')
   [ "$PART_START" ] || return 1
-  # Return value will likely be error for fdisk as it fails to reload the
-  # partition table because the root fs is mounted
+  # 返回值可能是 fdisk 的错误，因为它无法重新加载分区表，
+  # 因为根文件系统已挂载
   fdisk "$ROOT_DEV" <<EOF
 p
 d
@@ -299,7 +298,7 @@ w
 EOF
   ASK_TO_REBOOT=1
 
-  # now set up an init.d script
+  # 现在设置一个 init.d 脚本
 cat <<EOF > /etc/init.d/resize2fs_once &&
 #!/bin/sh
 ### BEGIN INIT INFO
@@ -308,7 +307,7 @@ cat <<EOF > /etc/init.d/resize2fs_once &&
 # Required-Stop:
 # Default-Start: 3
 # Default-Stop:
-# Short-Description: Resize the root filesystem to fill partition
+# Short-Description: 调整根文件系统大小以填充分区
 # Description:
 ### END INIT INFO
 
@@ -316,14 +315,14 @@ cat <<EOF > /etc/init.d/resize2fs_once &&
 
 case "\$1" in
   start)
-    log_daemon_msg "Starting resize2fs_once" &&
+    log_daemon_msg "正在启动 resize2fs_once" &&
     resize2fs "$ROOT_PART" &&
     update-rc.d resize2fs_once remove &&
     rm /etc/init.d/resize2fs_once &&
     log_end_msg \$?
     ;;
   *)
-    echo "Usage: \$0 start" >&2
+    echo "用法: \$0 start" >&2
     exit 3
     ;;
 esac
@@ -331,7 +330,7 @@ EOF
   chmod +x /etc/init.d/resize2fs_once &&
   update-rc.d resize2fs_once defaults &&
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Root partition has been resized.\nThe filesystem will be enlarged upon the next reboot" 20 60 2
+    whiptail --msgbox "根分区已调整大小。\n文件系统将在下次重启时扩展" 20 60 2
   fi
 }
 
@@ -386,7 +385,7 @@ do_overscan() {
     CURRENT=1
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to enable compensation for displays with overscan?" $DEFAULT 20 60 2
+    whiptail --yesno "您想为具有过扫描的显示器启用补偿吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -396,16 +395,16 @@ do_overscan() {
   fi
   if [ $RET -eq 0 ] ; then
     set_config_var disable_overscan 0 $CONFIG
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     sed $CONFIG -i -e "s/^overscan_/#overscan_/"
     set_config_var disable_overscan 1 $CONFIG
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Display overscan compensation is $STATUS" 20 60 1
+    whiptail --msgbox "显示过扫描补偿已$STATUS" 20 60 1
   fi
 }
 
@@ -424,7 +423,7 @@ do_overscan_kms() {
   if [ "$INTERACTIVE" = True ]; then
     NDEVS=$(xrandr -q | grep -c connected)
     if [ $NDEVS -gt 1 ] ; then
-      DEV=$(whiptail --menu "Select the output for which overscan compensation is to be set" 20 60 10 "1" "HDMI-1" "2" "HDMI-2" 3>&1 1>&2 2>&3)
+      DEV=$(whiptail --menu "选择要设置过扫描补偿的输出" 20 60 10 "1" "HDMI-1" "2" "HDMI-2" 3>&1 1>&2 2>&3)
       if [ $? -eq 1 ] ; then
         return
       fi
@@ -436,12 +435,12 @@ do_overscan_kms() {
     else
       DEFAULT=
     fi
-    if whiptail --yesno "Would you like to enable overscan compensation for HDMI-$DEV?" $DEFAULT 20 60 2 ; then
+    if whiptail --yesno "您想为 HDMI-$DEV 启用过扫描补偿吗？" $DEFAULT 20 60 2 ; then
       PIX=16
-      STATUS="enabled"
+      STATUS="已启用"
     else
       PIX=0
-      STATUS="disabled"
+      STATUS="已禁用"
     fi
   else
     DEV=$1
@@ -452,7 +451,7 @@ do_overscan_kms() {
     fi
   fi
   xrandr --output HDMI-$DEV --set "left margin" $PIX --set "right margin" $PIX --set "top margin" $PIX --set "bottom margin" $PIX
-  # hack to force reload when not using mutter
+  # 在不使用 mutter 时强制重新加载的技巧
   if ! pgrep mutter > /dev/null ; then
     xrandr --output HDMI-$DEV --reflect x
     xrandr --output HDMI-$DEV --reflect normal
@@ -473,7 +472,7 @@ do_overscan_kms() {
     sed /usr/share/dispsetup.sh -i -e "s#exit#if [ -e /usr/share/ovscsetup.sh ] ; then\n. /usr/share/ovscsetup.sh\nfi\nexit#"
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Display overscan compensation for HDMI-$DEV is $STATUS" 20 60 1
+    whiptail --msgbox "HDMI-$DEV 的显示过扫描补偿已$STATUS" 20 60 1
   fi
 }
 
@@ -510,7 +509,7 @@ do_blanking() {
   fi
   if is_wayfire; then
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --yesno "Would you like to enable screen blanking?" $DEFAULT 20 60 2
+      whiptail --yesno "您想启用屏幕消隐吗？" $DEFAULT 20 60 2
       RET=$?
     else
       RET=$1
@@ -526,7 +525,7 @@ do_blanking() {
           chown $USER:$USER $WAYFIRE_FILE
         fi
       fi
-      STATUS=enabled
+      STATUS=已启用
     elif [ "$RET" -eq 1 ]; then
       if grep -q dpms_timeout $WAYFIRE_FILE ; then
         sed -i 's/dpms_timeout.*/dpms_timeout=-1/' $WAYFIRE_FILE
@@ -538,13 +537,13 @@ do_blanking() {
           chown $USER:$USER $WAYFIRE_FILE
         fi
       fi
-      STATUS=disabled
+      STATUS=已禁用
     else
       return "$RET"
     fi
   elif is_labwc; then
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --yesno "Would you like to enable screen blanking?" $DEFAULT 20 60 2
+      whiptail --yesno "您想启用屏幕消隐吗？" $DEFAULT 20 60 2
       RET=$?
     else
       RET=$1
@@ -559,7 +558,7 @@ do_blanking() {
       echo "swayidle -w timeout 600 'wlopm --off \\*' resume 'wlopm --on \\*' &" >> $LABWCAST_FILE
       chown $USER:$USER $LABWCAST_FILE
       echo "swayidle -w timeout 600 'wlopm --off \\*' resume 'wlopm --on \\*' &" >> /etc/xdg/labwc-greeter/autostart
-      STATUS=enabled
+      STATUS=已启用
     elif [ "$RET" -eq 1 ]; then
       if [ -e $LABWCAST_FILE ] ; then
         sed -i '/swayidle/d' $LABWCAST_FILE
@@ -567,16 +566,16 @@ do_blanking() {
       if [ -e /etc/xdg/labwc-greeter/autostart ] ; then
         sed -i '/swayidle/d' /etc/xdg/labwc-greeter/autostart
       fi
-      STATUS=disabled
+      STATUS=已禁用
     else
       return "$RET"
     fi
   else
     if [ "$INTERACTIVE" = True ]; then
       if [ "$(dpkg -l xscreensaver | tail -n 1 | cut -d ' ' -f 1)" = "ii" ]; then
-        whiptail --msgbox "Warning: xscreensaver is installed and may override raspi-config settings" 20 60 2
+        whiptail --msgbox "警告：已安装 xscreensaver，可能会覆盖 raspi-config 的设置" 20 60 2
       fi
-      whiptail --yesno "Would you like to enable screen blanking?" $DEFAULT 20 60 2
+      whiptail --yesno "您想启用屏幕消隐吗？" $DEFAULT 20 60 2
       RET=$?
     else
       RET=$1
@@ -587,25 +586,25 @@ do_blanking() {
     rm -f /etc/X11/xorg.conf.d/10-blanking.conf
     sed -i '/^\o033/d' /etc/issue
     if [ "$RET" -eq 0 ] ; then
-      STATUS=enabled
+      STATUS=已启用
     elif [ "$RET" -eq 1 ]; then
       mkdir -p /etc/X11/xorg.conf.d/
       cp /usr/share/raspi-config/10-blanking.conf /etc/X11/xorg.conf.d/
       printf "\\033[9;0]" >> /etc/issue
-      STATUS=disabled
+      STATUS=已禁用
     else
       return "$RET"
     fi
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Screen blanking is $STATUS" 20 60 1
+    whiptail --msgbox "屏幕消隐已$STATUS" 20 60 1
   fi
 }
 
 do_change_pass() {
-  whiptail --msgbox "You will now be asked to enter a new password for the $USER user" 20 60 1
+  whiptail --msgbox "现在将要求您为 $USER 用户输入新密码" 20 60 1
   passwd $USER &&
-  whiptail --msgbox "Password changed successfully" 20 60 1
+  whiptail --msgbox "密码修改成功" 20 60 1
 }
 
 update_wayfire_keyboard() {
@@ -677,7 +676,7 @@ update_labwc_keyboard() {
     if grep -q XKB_DEFAULT_OPTIONS $UFILE ; then sed -i s/XKB_DEFAULT_OPTIONS.*/XKB_DEFAULT_OPTIONS=$OPTIONS/ $UFILE ; else echo XKB_DEFAULT_OPTIONS=$OPTIONS >> $UFILE ; fi
   fi
   if is_labwc ; then
-    kill -HUP `pgrep -x labwc`  # does the equivalent of labwc --reconfigure, but works as sudo...
+    kill -HUP `pgrep -x labwc`  # 相当于 labwc --reconfigure，但在 sudo 下可以工作...
   fi
 }
 
@@ -734,7 +733,7 @@ update_squeekboard() {
 }
 
 do_configure_keyboard() {
-  printf "Reloading keymap. This may take a short while\n"
+  printf "正在重新加载键盘映射。这可能需要一点时间\n"
   rm -f /etc/console-setup/cached_*
   if [ "$INTERACTIVE" = True ]; then
     dpkg-reconfigure keyboard-configuration
@@ -858,14 +857,14 @@ do_wifi_country() {
     oIFS="$IFS"
     IFS="/"
     #shellcheck disable=2086
-    REGDOMAIN=$(whiptail --menu "Select the country in which the Pi is to be used" 20 60 10 ${value} 3>&1 1>&2 2>&3)
+    REGDOMAIN=$(whiptail --menu "选择树莓派将要使用的国家" 20 60 10 ${value} 3>&1 1>&2 2>&3)
     IFS="$oIFS"
   else
     REGDOMAIN=$1
   fi
   if ! grep -q "^${REGDOMAIN}[[:space:]]" /usr/share/zoneinfo/iso3166.tab; then
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "$REGDOMAIN is not a valid ISO/IEC 3166-1 alpha2 code" 20 60
+      whiptail --msgbox "$REGDOMAIN 不是有效的 ISO/IEC 3166-1 alpha2 代码" 20 60
     fi
     return 1
   fi
@@ -874,7 +873,7 @@ do_wifi_country() {
     -e "s/\(.*\)/\1 cfg80211.ieee80211_regdom=$REGDOMAIN/" \
     "$CMDLINE"
   if is_installed crda && [ -e /etc/default/crda ]; then
-    # This mechanism has been removed from Bookworm and should no longer be used
+    # 此机制已从 Bookworm 中删除，不应再使用
     rm -f /etc/default/crda
   fi
   if ! ischroot; then
@@ -904,7 +903,7 @@ do_wifi_country() {
     done
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Wireless LAN country set to $REGDOMAIN" 20 60 1
+    whiptail --msgbox "无线局域网国家已设置为 $REGDOMAIN" 20 60 1
   fi
   if ! ischroot; then
     if pgrep -x wf-panel-pi > /dev/null; then
@@ -919,7 +918,7 @@ do_wifi_country() {
 
 get_hostname() {
   HOSTNAME_FILE="${MOCK_HOSTNAME_FILE:-/etc/hostname}"
-  # skip comments and empty lines, return first valid hostname with whitespace stripped
+  # 跳过注释和空行，返回第一个有效的主机名（去除空白）
   grep -v '^[[:space:]]*\(#\|$\)' "$HOSTNAME_FILE" | head -n1 | xargs
 }
 
@@ -929,16 +928,15 @@ do_hostname() {
 
   if [ "$INTERACTIVE" = True ]; then
     whiptail --msgbox "\
-Please note: RFCs mandate that a hostname's labels \
-may contain only the ASCII letters 'a' through 'z' (case-insensitive),
-the digits '0' through '9', and the hyphen.
-Hostname labels cannot begin or end with a hyphen.
-No other symbols, punctuation characters, or blank spaces are permitted.\
+请注意：RFC 规定主机名的标签只能包含 ASCII 字母 'a' 到 'z'（不区分大小写）、
+数字 '0' 到 '9' 和连字符。
+主机名标签不能以连字符开头或结尾。
+不允许使用其他符号、标点字符或空格。\
 " 20 70 1
   fi
   CURRENT_HOSTNAME=$(get_hostname)
   if [ "$INTERACTIVE" = True ]; then
-    NEW_HOSTNAME=$(whiptail --inputbox "Please enter a hostname" 20 60 "$CURRENT_HOSTNAME" 3>&1 1>&2 2>&3)
+    NEW_HOSTNAME=$(whiptail --inputbox "请输入主机名" 20 60 "$CURRENT_HOSTNAME" 3>&1 1>&2 2>&3)
     RET=$?
   else
     NEW_HOSTNAME="$1"
@@ -962,29 +960,28 @@ No other symbols, punctuation characters, or blank spaces are permitted.\
 
 do_overclock() {
   if ! is_pione && ! is_pitwo; then
-    whiptail --msgbox "Only Pi 1 or Pi 2 can be overclocked with this tool." 20 60 2
+    whiptail --msgbox "只有 Pi 1 或 Pi 2 可以使用此工具进行超频。" 20 60 2
     return 1
   fi
   if [ "$INTERACTIVE" = True ]; then
     whiptail --msgbox "\
-Be aware that overclocking may reduce the lifetime of your
-Raspberry Pi. If overclocking at a certain level causes
-system instability, try a more modest overclock. Hold down
-shift during boot to temporarily disable overclock.
-See https://www.raspberrypi.org/documentation/configuration/config-txt/overclocking.md for more information.\
+请注意，超频可能会缩短树莓派的使用寿命。
+如果在某个级别超频导致系统不稳定，请尝试更温和的超频。
+在启动时按住 shift 键可以临时禁用超频。
+更多信息请参见 https://www.raspberrypi.org/documentation/configuration/config-txt/overclocking.md\
 " 20 70 1
   if is_pione; then
-    OVERCLOCK=$(whiptail --menu "Choose overclock preset" 20 60 10 \
-      "None" "700MHz ARM, 250MHz core, 400MHz SDRAM, 0 overvolt" \
-      "Modest" "800MHz ARM, 250MHz core, 400MHz SDRAM, 0 overvolt" \
-      "Medium" "900MHz ARM, 250MHz core, 450MHz SDRAM, 2 overvolt" \
-      "High" "950MHz ARM, 250MHz core, 450MHz SDRAM, 6 overvolt" \
-      "Turbo" "1000MHz ARM, 500MHz core, 600MHz SDRAM, 6 overvolt" \
+    OVERCLOCK=$(whiptail --menu "选择超频预设" 20 60 10 \
+      "None" "700MHz ARM, 250MHz 核心, 400MHz SDRAM, 0 超压" \
+      "Modest" "800MHz ARM, 250MHz 核心, 400MHz SDRAM, 0 超压" \
+      "Medium" "900MHz ARM, 250MHz 核心, 450MHz SDRAM, 2 超压" \
+      "High" "950MHz ARM, 250MHz 核心, 450MHz SDRAM, 6 超压" \
+      "Turbo" "1000MHz ARM, 500MHz 核心, 600MHz SDRAM, 6 超压" \
       3>&1 1>&2 2>&3)
   elif is_pitwo; then
-    OVERCLOCK=$(whiptail --menu "Choose overclock preset" 20 60 10 \
-      "None" "900MHz ARM, 250MHz core, 450MHz SDRAM, 0 overvolt" \
-      "High" "1000MHz ARM, 500MHz core, 500MHz SDRAM, 2 overvolt" \
+    OVERCLOCK=$(whiptail --menu "选择超频预设" 20 60 10 \
+      "None" "900MHz ARM, 250MHz 核心, 450MHz SDRAM, 0 超压" \
+      "High" "1000MHz ARM, 500MHz 核心, 500MHz SDRAM, 2 超压" \
       3>&1 1>&2 2>&3)
   fi
   else
@@ -1013,7 +1010,7 @@ See https://www.raspberrypi.org/documentation/configuration/config-txt/overclock
         set_overclock Turbo 1000 500 600 6
         ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised overclock preset" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的超频预设" 20 60 2
         return 1
         ;;
     esac
@@ -1027,7 +1024,7 @@ set_overclock() {
   set_config_var sdram_freq $4 $CONFIG &&
   set_config_var over_voltage $5 $CONFIG &&
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Set overclock to preset '$1'" 20 60 2
+    whiptail --msgbox "已将超频设置为预设 '$1'" 20 60 2
   fi
 }
 
@@ -1037,7 +1034,7 @@ clear_overclock () {
   clear_config_var sdram_freq $CONFIG &&
   clear_config_var over_voltage $CONFIG &&
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Set overclock to preset 'None'" 20 60 2
+    whiptail --msgbox "已将超频设置为预设 'None'" 20 60 2
   fi
 }
 
@@ -1056,7 +1053,7 @@ do_ssh() {
   fi
   if [ "$INTERACTIVE" = True ]; then
     whiptail --yesno \
-      "Would you like the SSH server to be enabled?\n\nCaution: Default and weak passwords are a security risk when SSH is enabled!" \
+      "您想启用 SSH 服务器吗？\n\n注意：启用 SSH 时，默认密码和弱密码会带来安全风险！" \
       $DEFAULT 20 60 2
     RET=$?
   else
@@ -1066,16 +1063,16 @@ do_ssh() {
     ssh-keygen -A &&
     update-rc.d ssh enable &&
     invoke-rc.d ssh start &&
-    STATUS=enabled
+    STATUS=已启用
   elif [ "$RET" -eq 1 ]; then
     update-rc.d ssh disable &&
     invoke-rc.d ssh stop &&
-    STATUS=disabled
+    STATUS=已禁用
   else
     return "$RET"
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The SSH server is $STATUS" 20 60 1
+    whiptail --msgbox "SSH 服务器已$STATUS" 20 60 1
   fi
 }
 
@@ -1102,7 +1099,7 @@ do_vnc() {
   fi
   APT_GET_FLAGS=""
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like the VNC Server to be enabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用 VNC 服务器吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -1112,13 +1109,13 @@ do_vnc() {
     if is_installed wayvnc; then
       wayvnc_version="$(get_package_version wayvnc)"
       if dpkg --compare-versions "$wayvnc_version" lt 0.8; then
-        whiptail --msgbox "WayVNC version 0.8 or greater is required (have $wayvnc_version)" 20 60 1
+        whiptail --msgbox "需要 WayVNC 版本 0.8 或更高（当前版本 $wayvnc_version）" 20 60 1
         return 1
       fi
 
       systemctl stop wayvnc.service
 
-      # In case wayvnc is already running via older xdg-autostart machanism
+      # 如果 wayvnc 已通过旧的 xdg-autostart 机制运行，则删除
       if [ -e /etc/xdg/autostart/wayvnc.desktop ] ; then
         rm /etc/xdg/autostart/wayvnc.desktop
       fi
@@ -1131,7 +1128,7 @@ do_vnc() {
       if is_installed wayvnc; then
         systemctl enable wayvnc.service &&
         systemctl start wayvnc.service &&
-        STATUS=enabled
+        STATUS=已启用
       else
         return 1
       fi
@@ -1139,7 +1136,7 @@ do_vnc() {
       if is_installed realvnc-vnc-server || apt-get install "$APT_GET_FLAGS" realvnc-vnc-server; then
         systemctl enable vncserver-x11-serviced.service &&
         systemctl start vncserver-x11-serviced.service &&
-        STATUS=enabled
+        STATUS=已启用
       else
         return 1
       fi
@@ -1153,12 +1150,12 @@ do_vnc() {
       systemctl disable vncserver-x11-serviced.service
       systemctl stop vncserver-x11-serviced.service
     fi
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The VNC Server is $STATUS" 20 60 1
+    whiptail --msgbox "VNC 服务器已$STATUS" 20 60 1
   fi
 }
 
@@ -1181,7 +1178,7 @@ do_rpi_connect() {
   fi
   APT_GET_FLAGS=""
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to enable screen sharing over Raspberry Pi Connect?" --defaultno 20 60 2
+    whiptail --yesno "您想通过 Raspberry Pi Connect 启用屏幕共享吗？" --defaultno 20 60 2
     RET=$?
   else
     APT_GET_FLAGS="-y"
@@ -1199,13 +1196,13 @@ do_rpi_connect() {
       else
         $PREFIX rpi-connect on > /dev/null 2>&1
       fi
-      STATUS="Screen sharing via Raspberry Pi Connect is enabled"
+      STATUS="已启用通过 Raspberry Pi Connect 的屏幕共享"
     else
       return 1
     fi
   elif [ $RET -eq 1 ]; then
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --yesno "Would you like to enable remote shell access over Raspberry Pi Connect?" --defaultno 20 60 2
+      whiptail --yesno "您想通过 Raspberry Pi Connect 启用远程 shell 访问吗？" --defaultno 20 60 2
       RET=$?
     fi
     if [ $RET -eq 0 ]; then
@@ -1216,7 +1213,7 @@ do_rpi_connect() {
         else
           $PREFIX rpi-connect on > /dev/null 2>&1
         fi
-        STATUS="Remote shell access via Raspberry Pi Connect is enabled"
+        STATUS="已启用通过 Raspberry Pi Connect 的远程 shell 访问"
       else
         return 1
       fi
@@ -1230,7 +1227,7 @@ do_rpi_connect() {
       else
         $PREFIX rpi-connect off > /dev/null 2>&1
       fi
-      STATUS="Raspberry Pi Connect is disabled"
+      STATUS="Raspberry Pi Connect 已禁用"
     else
       return $RET
     fi
@@ -1256,17 +1253,17 @@ do_spi() {
     DEFAULT=
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like the SPI interface to be enabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用 SPI 接口吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
   fi
   if [ $RET -eq 0 ]; then
     SETTING=on
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     SETTING=off
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
@@ -1279,7 +1276,7 @@ do_spi() {
   dtparam spi=$SETTING
 
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The SPI interface is $STATUS" 20 60 1
+    whiptail --msgbox "SPI 接口已$STATUS" 20 60 1
   fi
 }
 
@@ -1297,17 +1294,17 @@ do_i2c() {
     DEFAULT=
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like the ARM I2C interface to be enabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用 ARM I2C 接口吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
   fi
   if [ $RET -eq 0 ]; then
     SETTING=on
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     SETTING=off
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
@@ -1325,7 +1322,7 @@ do_i2c() {
   modprobe i2c-dev
 
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The ARM I2C interface is $STATUS" 20 60 1
+    whiptail --msgbox "ARM I2C 接口已$STATUS" 20 60 1
   fi
 }
 
@@ -1407,37 +1404,37 @@ do_serial() {
     DEFAULTH=
     CURRENTH=1
   fi
-  whiptail --yesno "Would you like a login shell to be accessible over serial?" $DEFAULTS 20 60 2
+  whiptail --yesno "您想通过串口访问登录 shell 吗？" $DEFAULTS 20 60 2
   RET=$?
   if [ $RET -eq $CURRENTS ]; then
     ASK_TO_REBOOT=1
   fi
   if [ $RET -eq 0 ]; then
     do_serial_cons 0
-    SSTATUS=enabled
+    SSTATUS=已启用
     do_serial_hw 0
-    HSTATUS=enabled
+    HSTATUS=已启用
   elif [ $RET -eq 1 ]; then
     do_serial_cons 1
-    SSTATUS=disabled
-    whiptail --yesno "Would you like the serial port hardware to be enabled?" $DEFAULTH 20 60 2
+    SSTATUS=已禁用
+    whiptail --yesno "您想启用串口硬件吗？" $DEFAULTH 20 60 2
     RET=$?
     if [ $RET -eq $CURRENTH ]; then
       ASK_TO_REBOOT=1
     fi
     if [ $RET -eq 0 ]; then
       do_serial_hw 0
-      HSTATUS=enabled
+      HSTATUS=已启用
     elif [ $RET -eq 1 ]; then
       do_serial_hw 1
-      HSTATUS=disabled
+      HSTATUS=已禁用
     else
       return $RET
     fi
   else
     return $RET
   fi
-  whiptail --msgbox "The serial login shell is $SSTATUS\nThe serial interface is $HSTATUS" 20 60 1
+  whiptail --msgbox "串口登录 shell 已$SSTATUS\n串口接口已$HSTATUS" 20 60 1
 }
 
 do_serial_pi5() {
@@ -1453,35 +1450,35 @@ do_serial_pi5() {
     DEFAULTH=
     CURRENTH=1
   fi
-  whiptail --yesno "Would you like a login shell to be accessible over serial?" $DEFAULTS 20 60 2
+  whiptail --yesno "您想通过串口访问登录 shell 吗？" $DEFAULTS 20 60 2
   RET=$?
   if [ $RET -eq $CURRENTS ]; then
     ASK_TO_REBOOT=1
   fi
   if [ $RET -eq 0 ]; then
     do_serial_cons 0
-    SSTATUS=enabled
+    SSTATUS=已启用
   elif [ $RET -eq 1 ]; then
     do_serial_cons 1
-    SSTATUS=disabled
+    SSTATUS=已禁用
   else
     return $RET
   fi
-  whiptail --yesno "Would you like the serial port hardware to be enabled?" $DEFAULTH 20 60 2
+  whiptail --yesno "您想启用串口硬件吗？" $DEFAULTH 20 60 2
   RET=$?
   if [ $RET -eq $CURRENTH ]; then
     ASK_TO_REBOOT=1
   fi
   if [ $RET -eq 0 ]; then
     do_serial_hw 0
-    HSTATUS=enabled
+    HSTATUS=已启用
   elif [ $RET -eq 1 ]; then
     do_serial_hw 1
-    HSTATUS=disabled
+    HSTATUS=已禁用
   else
     return $RET
   fi
-  whiptail --msgbox "The serial login shell is $SSTATUS\nThe serial interface is $HSTATUS" 20 60 1
+  whiptail --msgbox "串口登录 shell 已$SSTATUS\n串口接口已$HSTATUS" 20 60 1
 }
 
 get_pci() {
@@ -1500,17 +1497,17 @@ do_pci() {
     CURRENT=0
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like PCIe Gen 3 to be enabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用 PCIe Gen 3 吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
   fi
   if [ $RET -eq 0 ]; then
     set_config_var dtparam=pciex1_gen 3 $CONFIG
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     clear_config_var dtparam=pciex1_gen $CONFIG
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
@@ -1519,7 +1516,7 @@ do_pci() {
   fi
 
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "PCIe Gen 3 is $STATUS" 20 60 1
+    whiptail --msgbox "PCIe Gen 3 已$STATUS" 20 60 1
   fi
 }
 
@@ -1544,14 +1541,14 @@ get_boot_cli() {
 
 get_autologin() {
   if [ $(get_boot_cli) -eq 0 ]; then
-    # booting to CLI
+    # 启动到 CLI
     if [ -e /etc/systemd/system/getty@tty1.service.d/autologin.conf ] ; then
       echo 0
     else
       echo 1
     fi
   else
-    # booting to desktop - check the autologin for lightdm
+    # 启动到桌面 - 检查 lightdm 的自动登录
     if grep -q "^autologin-user=" /etc/lightdm/lightdm.conf ; then
       echo 0
     else
@@ -1591,7 +1588,7 @@ do_pi4video() {
     DEFAULT=
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to enable 4Kp60 output on HDMI0?" $DEFAULT 20 60 2
+    whiptail --yesno "您想在 HDMI0 上启用 4Kp60 输出吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -1603,12 +1600,12 @@ do_pi4video() {
     fi
     sed $CONFIG -i -e "s/^enable_tvout=/#enable_tvout=/"
     sed $CONFIG -i -e "s/^dtoverlay=vc4-kms-v3d.*/dtoverlay=vc4-kms-v3d/"
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     sed $CONFIG -i -e "s/^hdmi_enable_4kp60=/#hdmi_enable_4kp60=/"
     sed $CONFIG -i -e "s/^enable_tvout=/#enable_tvout=/"
     sed $CONFIG -i -e "s/^dtoverlay=vc4-kms-v3d.*/dtoverlay=vc4-kms-v3d/"
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
@@ -1616,7 +1613,7 @@ do_pi4video() {
     ASK_TO_REBOOT=1
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "4Kp60 is $STATUS" 20 60 1
+    whiptail --msgbox "4Kp60 已$STATUS" 20 60 1
   fi
 }
 
@@ -1635,7 +1632,7 @@ do_composite() {
     DEFAULT=
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like composite video output to be enabled? Warning - this will disable the HDMI outputs." $DEFAULT 20 60 2
+    whiptail --yesno "您想启用复合视频输出吗？警告 - 这将禁用 HDMI 输出。" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -1644,11 +1641,11 @@ do_composite() {
     sed $CONFIG -i -e "s/^dtoverlay=vc4-kms-v3d.*/dtoverlay=vc4-kms-v3d,composite/"
     sed $CONFIG -i -e "s/^#\?enable_tvout=.*/enable_tvout=1/"
     sed $CONFIG -i -e "s/^hdmi_enable_4kp60=/#hdmi_enable_4kp60=/"
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     sed $CONFIG -i -e "s/^dtoverlay=vc4-kms-v3d.*/dtoverlay=vc4-kms-v3d/"
     sed $CONFIG -i -e "s/^enable_tvout=/#enable_tvout=/"
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
@@ -1656,7 +1653,7 @@ do_composite() {
     ASK_TO_REBOOT=1
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Composite video output is $STATUS" 20 60 1
+    whiptail --msgbox "复合视频输出已$STATUS" 20 60 1
   fi
 }
 
@@ -1676,7 +1673,7 @@ do_leds() {
   CURRENT=$(get_leds)
   if [ $CURRENT -eq -1 ] ; then
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "The LED behaviour cannot be changed on this model of Raspberry Pi" 20 60 1
+      whiptail --msgbox "此型号的树莓派无法更改 LED 行为" 20 60 1
     fi
     return 1
   fi
@@ -1685,17 +1682,17 @@ do_leds() {
     DEFAULT=
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like the power LED to flash during disk activity?" $DEFAULT 20 60 2
+    whiptail --yesno "您想让电源 LED 在磁盘活动期间闪烁吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
   fi
   if [ $RET -eq 0 ]; then
     LEDSET="actpwr"
-    STATUS="flash for disk activity"
+    STATUS="磁盘活动时闪烁"
   elif [ $RET -eq 1 ]; then
     LEDSET="default-on"
-    STATUS="be on constantly"
+    STATUS="持续点亮"
   else
     return $RET
   fi
@@ -1705,7 +1702,7 @@ do_leds() {
   fi
   echo $LEDSET | tee /sys/class/leds/ACT/trigger > /dev/null
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The power LED will $STATUS" 20 60 1
+    whiptail --msgbox "电源 LED 将$STATUS" 20 60 1
   fi
 }
 
@@ -1737,14 +1734,14 @@ do_fan() {
   GNOW=$(get_fan_gpio)
   TNOW=$(get_fan_temp)
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to enable fan temperature control?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用风扇温度控制吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
   fi
   if [ $RET -eq 0 ] ; then
     if [ "$INTERACTIVE" = True ]; then
-      GPIO=$(whiptail --inputbox "To which GPIO is the fan connected?" 20 60 "$GNOW" 3>&1 1>&2 2>&3)
+      GPIO=$(whiptail --inputbox "风扇连接到哪个 GPIO？" 20 60 "$GNOW" 3>&1 1>&2 2>&3)
     else
       if [ -z $2 ]; then
         GPIO=14
@@ -1757,18 +1754,18 @@ do_fan() {
     fi
     if ! echo "$GPIO" | grep -q "^[[:digit:]]*$" ; then
       if [ "$INTERACTIVE" = True ]; then
-        whiptail --msgbox "GPIO must be a number between 2 and 27" 20 60 1
+        whiptail --msgbox "GPIO 必须是 2 到 27 之间的数字" 20 60 1
       fi
       return 1
     fi
     if [ "$GPIO" -lt 2 ] || [ "$GPIO" -gt 27 ]  ; then
       if [ "$INTERACTIVE" = True ]; then
-        whiptail --msgbox "GPIO must be a number between 2 and 27" 20 60 1
+        whiptail --msgbox "GPIO 必须是 2 到 27 之间的数字" 20 60 1
       fi
       return 1
     fi
     if [ "$INTERACTIVE" = True ]; then
-      TIN=$(whiptail --inputbox "At what temperature in degrees Celsius should the fan turn on?" 20 60 "$TNOW" 3>&1 1>&2 2>&3)
+      TIN=$(whiptail --inputbox "风扇应在多少摄氏度时启动？" 20 60 "$TNOW" 3>&1 1>&2 2>&3)
     else
       if [ -z $3 ]; then
         TIN=80
@@ -1781,13 +1778,13 @@ do_fan() {
     fi
     if ! echo "$TIN" | grep -q "^[[:digit:]]*$" ; then
       if [ "$INTERACTIVE" = True ]; then
-        whiptail --msgbox "Temperature must be a number between 60 and 120" 20 60 1
+        whiptail --msgbox "温度必须是 60 到 120 之间的数字" 20 60 1
       fi
       return 1
     fi
     if [ "$TIN" -lt 60 ] || [ "$TIN" -gt 120 ]  ; then
       if [ "$INTERACTIVE" = True ]; then
-        whiptail --msgbox "Temperature must be a number between 60 and 120" 20 60 1
+        whiptail --msgbox "温度必须是 60 到 120 之间的数字" 20 60 1
       fi
       return 1
     fi
@@ -1804,7 +1801,7 @@ do_fan() {
     fi
     ASK_TO_REBOOT=1
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "The fan on GPIO $GPIO is enabled and will turn on at $TIN degrees Celsius" 20 60 1
+      whiptail --msgbox "GPIO $GPIO 上的风扇已启用，将在 $TIN 摄氏度时启动" 20 60 1
     fi
   else
     if grep -q "^dtoverlay=gpio-fan" $CONFIG ; then
@@ -1812,7 +1809,7 @@ do_fan() {
     fi
     sed $CONFIG -i -e "/^.*dtoverlay=gpio-fan.*/d"
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "The fan is disabled" 20 60 1
+      whiptail --msgbox "风扇已禁用" 20 60 1
     fi
   fi
 }
@@ -1823,7 +1820,7 @@ get_browser() {
 
 do_browser() {
   if [ "$INTERACTIVE" = True ]; then
-    RES=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Select Browser" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+    RES=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "选择浏览器" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
       "1" "Chromium" \
       "2" "Firefox" \
       3>&1 1>&2 2>&3)
@@ -1847,19 +1844,19 @@ do_browser() {
       sudo -u $2 xdg-settings set default-web-browser $BROWSER.desktop
     fi
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "Default browser set to $BSTRING" 20 60 1
+      whiptail --msgbox "默认浏览器已设置为 $BSTRING" 20 60 1
     fi
   fi
 }
 
 do_journald_storage() {
   if [ "$INTERACTIVE" = True ]; then
-    RES=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Select Log Location" "$WT_HEIGHT" "$WT_WIDTH" "$WT_MENU_HEIGHT" \
-      "1" "Default" \
-      "2" "Volatile" \
-      "3" "Persistent" \
-      "4" "Auto" \
-      "5" "None" \
+    RES=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "选择日志位置" "$WT_HEIGHT" "$WT_WIDTH" "$WT_MENU_HEIGHT" \
+      "1" "默认" \
+      "2" "易失性" \
+      "3" "持久性" \
+      "4" "自动" \
+      "5" "无" \
       3>&1 1>&2 2>&3)
   else
     RES=""
@@ -1880,62 +1877,62 @@ do_journald_storage() {
       ;;
     esac
 
-    # Restore any previous configuration in base configuration file to
-    # commented-out systemd default as we now use drop-in configuration
+    # 将基本配置文件中的任何先前配置恢复为
+    # 注释掉的 systemd 默认值，因为我们现在使用插入式配置
     sed -i -E 's/^(Storage)=.*/#\1=auto/' /etc/systemd/journald.conf 2>/dev/null || true
 
     CONFIG_FILE="/etc/systemd/journald.conf.d/80-raspi-config-journal-storage.conf"
 
     if [ -n "$JSTRING" ]; then
-      # Create directory if it doesn't exist
+      # 如果目录不存在则创建
       mkdir -p /etc/systemd/journald.conf.d
-      # Create config file with the setting
+      # 创建带有设置的配置文件
       cat > "$CONFIG_FILE" << EOF
-# Created/managed by raspi-config
+# 由 raspi-config 创建/管理
 
 [Journal]
 Storage=$JSTRING
 EOF
     else
-      # Remove our config file if it exists
+      # 如果存在则删除我们的配置文件
       if [ -e "$CONFIG_FILE" ]; then
         rm -f "$CONFIG_FILE"
-        # Try to remove directory if empty
+        # 如果为空则尝试删除目录
         rmdir --ignore-fail-on-non-empty /etc/systemd/journald.conf.d 2>/dev/null
       fi
     fi
 
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "Logging location set to ${JSTRING:-default}" 20 60 1
+      whiptail --msgbox "日志位置已设置为 ${JSTRING:-默认}" 20 60 1
     fi
   fi
 }
 
 do_boot_target(){
   if [ "$INTERACTIVE" = True ]; then
-    BOOTOPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Boot Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-      "B1 Console" "Text console" \
-      "B2 Desktop" "Desktop GUI" \
+    BOOTOPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "启动选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+      "B1 控制台" "文本控制台" \
+      "B2 桌面" "桌面 GUI" \
       3>&1 1>&2 2>&3)
   else
     BOOTOPT=$1
     true
   fi
   if [ $? -eq 0 ]; then
-    case "$BOOTOPT" in # Handle default target
-      B1*) # Console
+    case "$BOOTOPT" in # 处理默认目标
+      B1*) # 控制台
         systemctl --quiet set-default multi-user.target
         ;;
-      B2*) # Desktop
+      B2*) # 桌面
         if [ -e /etc/init.d/lightdm ]; then
           systemctl --quiet set-default graphical.target
         else
-          whiptail --msgbox "Do 'sudo apt-get install lightdm' to allow configuration of boot to desktop" 20 60 2
+          whiptail --msgbox "执行 'sudo apt-get install lightdm' 以允许配置启动到桌面" 20 60 2
           return 1
         fi
         ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised boot option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的启动选项" 20 60 2
         return 1
         ;;
     esac
@@ -1945,11 +1942,11 @@ do_boot_target(){
 
 do_autologin(){
   if [ -z "$USER" ]; then
-    echo "Can't configure autologin: USER unset" >&2
+    echo "无法配置自动登录：USER 未设置" >&2
     return 0
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to automatically log in to the console?" $DEFAULT 20 60 2
+    whiptail --yesno "您想自动登录到控制台吗？" $DEFAULT 20 60 2
     RET=$?
   else
     if [ $1 -eq 1 ] || [ $1 -eq 3 ] ; then
@@ -1965,22 +1962,22 @@ do_autologin(){
 ExecStart=
 ExecStart=-/sbin/agetty --autologin $USER --noclear %I \$TERM
 EOF
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
         if [ -f /etc/systemd/system/getty@tty1.service.d/autologin.conf ]; then
           rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf
           rmdir --ignore-fail-on-non-empty /etc/systemd/system/getty@tty1.service.d
         fi
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Console autologin is $STATUS" 20 60 1
+    whiptail --msgbox "控制台自动登录已$STATUS" 20 60 1
     if [ $(get_boot_cli) -eq 0 ]; then
       return 0
     fi
-    whiptail --yesno "Would you like to automatically log in to the desktop?" $DEFAULT 20 60 2
+    whiptail --yesno "您想自动登录到桌面吗？" $DEFAULT 20 60 2
     RET=$?
   else
     if [ $1 -eq 2 ] || [ $1 -eq 3 ] ; then
@@ -1991,51 +1988,51 @@ EOF
   fi
   if [ $RET -eq 0 ] ; then
     sed /etc/lightdm/lightdm.conf -i -e "s/^\(#\|\)autologin-user=.*/autologin-user=$USER/"
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     sed /etc/lightdm/lightdm.conf -i -e "s/^autologin-user=.*/#autologin-user=/"
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Desktop autologin is $STATUS" 20 60 1
+    whiptail --msgbox "桌面自动登录已$STATUS" 20 60 1
   fi
   ASK_TO_REBOOT=1
 }
 
 do_boot_behaviour() {
   if [ "$INTERACTIVE" = True ]; then
-    BOOTOPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Boot Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-      "B1 Console" "Text console, requiring user to login" \
-      "B2 Console Autologin" "Text console, automatically logged in as '$USER' user" \
-      "B3 Desktop" "Desktop GUI, requiring user to login" \
-      "B4 Desktop Autologin" "Desktop GUI, automatically logged in as '$USER' user" \
+    BOOTOPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "启动选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+      "B1 控制台" "文本控制台，需要用户登录" \
+      "B2 控制台自动登录" "文本控制台，自动以 '$USER' 用户登录" \
+      "B3 桌面" "桌面 GUI，需要用户登录" \
+      "B4 桌面自动登录" "桌面 GUI，自动以 '$USER' 用户登录" \
       3>&1 1>&2 2>&3)
   else
     BOOTOPT=$1
     true
   fi
   if [ $? -eq 0 ]; then
-    case "$BOOTOPT" in # Handle default target
-      B1*|B2*) # Console
+    case "$BOOTOPT" in # 处理默认目标
+      B1*|B2*) # 控制台
         systemctl --quiet set-default multi-user.target
         ;;
-      B3*|B4*) # Desktop
+      B3*|B4*) # 桌面
         if [ -e /etc/init.d/lightdm ]; then
           systemctl --quiet set-default graphical.target
         else
-          whiptail --msgbox "Do 'sudo apt-get install lightdm' to allow configuration of boot to desktop" 20 60 2
+          whiptail --msgbox "执行 'sudo apt-get install lightdm' 以允许配置启动到桌面" 20 60 2
           return 1
         fi
         ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised boot option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的启动选项" 20 60 2
         return 1
         ;;
     esac
-    case "$BOOTOPT" in # Handle autologin
-      B1*|B3*) # Autologin disabled
+    case "$BOOTOPT" in # 处理自动登录
+      B1*|B3*) # 自动登录已禁用
         if [ -z "${BOOTOPT%%B3*}" ]; then
           sed /etc/lightdm/lightdm.conf -i -e "s/^autologin-user=.*/#autologin-user=/"
         fi
@@ -2044,9 +2041,9 @@ do_boot_behaviour() {
           rmdir --ignore-fail-on-non-empty /etc/systemd/system/getty@tty1.service.d
         fi
         ;;
-      B2*|B4*) # Autologin enabled
+      B2*|B4*) # 自动登录已启用
         if [ -z "$USER" ]; then
-          echo "Can't configure autologin: USER unset" >&2
+          echo "无法配置自动登录：USER 未设置" >&2
           return 0
         fi
         if [ -z "${BOOTOPT%%B4*}" ]; then
@@ -2058,6 +2055,7 @@ do_boot_behaviour() {
 ExecStart=
 ExecStart=-/sbin/agetty --autologin $USER --noclear %I \$TERM
 EOF
+
         ;;
     esac
     if [ "$INIT" = "systemd" ]; then
@@ -2087,10 +2085,10 @@ get_bootloader_filename() {
    done
    if [ $EXACT_MATCH != 1 ]; then
       if [ "$INTERACTIVE" = True ]; then
-         whiptail --yesno "Current EEPROM version $(date -d $CURDATE +%Y-%m-%d) or newer not found.\n\nTry updating the rpi-eeprom APT package.\n\nInstall latest local $(basename $FILNAME) anyway?" 20 70 3
+         whiptail --yesno "未找到当前 EEPROM 版本 $(date -d $CURDATE +%Y-%m-%d) 或更新版本。\n\n尝试更新 rpi-eeprom APT 软件包。\n\n仍然安装最新的本地 $(basename $FILNAME) 吗？" 20 70 3
          DEFAULTS=$?
          if [ "$DEFAULTS" -ne 0 ]; then
-            FILNAME="none" # no
+            FILNAME="none" # 否
          fi
       fi
    fi
@@ -2098,9 +2096,9 @@ get_bootloader_filename() {
 
 do_network_install_ui() {
   if [ "$INTERACTIVE" = True ]; then
-    BOOTOPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Bootloader network install UI" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-      "B1 Always" "Always display the UI for a few seconds after power on." \
-      "B2 On demand" "Display the UI if the SHIFT key is pressed or if an error occurs." \
+    BOOTOPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "引导加载程序网络安装 UI" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+      "B1 始终" "开机后始终显示 UI 几秒钟。" \
+      "B2 按需" "如果按下 SHIFT 键或发生错误时显示 UI。" \
       3>&1 1>&2 2>&3)
   else
     BOOTOPT=$1
@@ -2124,11 +2122,11 @@ do_network_install_ui() {
          echo "NET_INSTALL_AT_POWER_ON=1" >> $EECFG
          ;;
       B2*)
-         # NET_INSTALL_AT_POWER_ON default value is 0
+         # NET_INSTALL_AT_POWER_ON 默认值为 0
          true
          ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised boot option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的启动选项" 20 60 2
         return 1
         ;;
     esac
@@ -2139,9 +2137,9 @@ do_network_install_ui() {
 
 do_libliftoff() {
   if [ "$INTERACTIVE" = True ]; then
-    RET=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "libliftoff Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-        "L1 Disable" "Disable libliftoff hardware overlays" \
-        "L2 Enable" "Enable libliftoff hardware overlays" \
+    RET=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "libliftoff 选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+        "L1 禁用" "禁用 libliftoff 硬件叠加" \
+        "L2 启用" "启用 libliftoff 硬件叠加" \
         3>&1 1>&2 2>&3)
   else
     RET=$1
@@ -2151,21 +2149,21 @@ do_libliftoff() {
     case "$RET" in
       L1*)
         LIBLIFTOFF_ENABLED=0
-        STATUS="disabled"
+        STATUS="已禁用"
         ;;
       L2*)
         LIBLIFTOFF_ENABLED=1
-        STATUS="enabled"
+        STATUS="已启用"
         ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised libliftoff option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的 libliftoff 选项" 20 60 2
         return 1
         ;;
     esac
 
-    # Create the config dir and/or environment file, if needed
+    # 如果需要，创建配置目录和/或环境文件
     if [ -z $HOMEDIR ]; then
-      whiptail --msgbox "Unknown user home directory" 20 60 2
+      whiptail --msgbox "未知的用户主目录" 20 60 2
       return 1
     fi
     LABWC_DIR="$HOMEDIR/.config/labwc"
@@ -2178,8 +2176,9 @@ do_libliftoff() {
       chown $USER:$USER $LABWCENV_FILE
     fi
 
-    # If there is already a libliftoff line in the env file, replace it.
-    # Otherwise, add one.
+
+    # 如果环境文件中已经有 libliftoff 行，则替换它。
+    # 否则，添加一个。
     if grep -q WLR_DRM_FORCE_LIBLIFTOFF $LABWCENV_FILE; then
       sed -i "s/^.*WLR_DRM_FORCE_LIBLIFTOFF.*$/WLR_DRM_FORCE_LIBLIFTOFF=$LIBLIFTOFF_ENABLED/" $LABWCENV_FILE
     else
@@ -2191,16 +2190,16 @@ do_libliftoff() {
     return 0
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "libliftoff is $STATUS" 20 60 1
+    whiptail --msgbox "libliftoff 已$STATUS" 20 60 1
   fi
 }
 
 # shellcheck disable=SC2120
 do_power_off_on_halt() {
   if [ "$INTERACTIVE" = True ]; then
-    BOOTOPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Configure shutdown behaviour." "$WT_HEIGHT" "$WT_WIDTH" "$WT_MENU_HEIGHT" \
-      "B1 Full power off" "Switch off Pi power management (PMIC) outputs on Pi4 / Pi5 (recommended)." \
-      "B2 VPU sleep mode" "Compatibility mode for HATs (e.g. POE HAT) and GPIO power buttons (Pi4)." \
+    BOOTOPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "配置关机行为。" "$WT_HEIGHT" "$WT_WIDTH" "$WT_MENU_HEIGHT" \
+      "B1 完全断电" "在 Pi4 / Pi5 上关闭 Pi 电源管理 (PMIC) 输出（推荐）。" \
+      "B2 VPU 睡眠模式" "HAT（例如 POE HAT）和 GPIO 电源按钮的兼容模式（Pi4）。" \
       3>&1 1>&2 2>&3)
   else
     BOOTOPT=$1
@@ -2232,7 +2231,7 @@ do_power_off_on_halt() {
          true
          ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised boot option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的启动选项" 20 60 2
         return 1
         ;;
     esac
@@ -2243,10 +2242,10 @@ do_power_off_on_halt() {
 
 do_boot_order() {
   if [ "$INTERACTIVE" = True ]; then
-    BOOTOPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Boot Device Order" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-      "B1 SD Card Boot " "Boot from SD Card before trying NVMe and then USB (RECOMMENDED)" \
-      "B2 NVMe/USB Boot" "Boot from NVMe before trying USB and then SD Card" \
-      "B3 Network Boot " "Boot from Network unless overridden by SD Card" \
+    BOOTOPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "启动设备顺序" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+      "B1 SD 卡启动 " "在尝试 NVMe 和 USB 之前从 SD 卡启动（推荐）" \
+      "B2 NVMe/USB 启动" "在尝试 USB 和 SD 卡之前从 NVMe 启动" \
+      "B3 网络启动 " "从网络启动，除非被 SD 卡覆盖" \
       3>&1 1>&2 2>&3)
   else
     BOOTOPT=$1
@@ -2269,7 +2268,7 @@ do_boot_order() {
         else
           sed $EECFG -i -e "s/^BOOT_ORDER=.*/BOOT_ORDER=${ORD}/"
         fi
-        STATUS="SD Card"
+        STATUS="SD 卡"
         ;;
       B2*)
         if is_pifive; then
@@ -2290,10 +2289,10 @@ do_boot_order() {
         else
           sed $EECFG -i -e "s/^BOOT_ORDER=.*/BOOT_ORDER=0xf21/"
         fi
-        STATUS="Network"
+        STATUS="网络"
         ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised boot option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的启动选项" 20 60 2
         return 1
         ;;
     esac
@@ -2308,7 +2307,7 @@ do_boot_order() {
     rpi-eeprom-config --apply $EECFG $FILNAME
     ASK_TO_REBOOT=1
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "$STATUS is default boot device" 20 60 1
+      whiptail --msgbox "$STATUS 是默认启动设备" 20 60 1
     fi
   fi
 }
@@ -2317,9 +2316,9 @@ do_beta_mode() {
   DVER=$(lsb_release -c | cut -f 2)
 
   if [ "$INTERACTIVE" = True ]; then
-    BETAOPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Beta Access" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-      "B1 Beta Software" "Use the beta repository and latest bootloader image" \
-      "B2 Release Software" "Use the release software repository" \
+    BETAOPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "Beta 访问" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+      "B1 Beta 软件" "使用 beta 仓库和最新的引导加载程序镜像" \
+      "B2 发布软件" "使用发布软件仓库" \
       3>&1 1>&2 2>&3)
   else
     BETAOPT=$1
@@ -2339,15 +2338,15 @@ EOF
         ;;
       B2*)
         rm -f /etc/apt/sources.list.d/beta.list
-        BETA="Release"
+        BETA="发布"
         ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的选项" 20 60 2
         return 1
         ;;
     esac
     if [ "$INTERACTIVE" = True ]; then
-         whiptail --msgbox "$BETA software enabled. Please use sudo apt update to refresh the repository." 20 60 2
+         whiptail --msgbox "$BETA 软件已启用。请使用 sudo apt update 刷新仓库。" 20 60 2
     fi
      ASK_TO_REBOOT=1
   fi
@@ -2356,9 +2355,9 @@ EOF
 
 do_boot_rom() {
   if [ "$INTERACTIVE" = True ]; then
-    BOOTOPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Bootloader Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-      "E1 Latest" "Use the latest bootloader image" \
-      "E2 Default" "Use the factory default bootloader image" \
+    BOOTOPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "引导加载程序选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+      "E1 最新" "使用最新的引导加载程序镜像" \
+      "E2 默认" "使用出厂默认的引导加载程序镜像" \
       3>&1 1>&2 2>&3)
   else
     BOOTOPT=$1
@@ -2368,24 +2367,24 @@ do_boot_rom() {
     case "$BOOTOPT" in
       E1*)
         sed /etc/default/rpi-eeprom-update -i -e "s/^FIRMWARE_RELEASE_STATUS.*/FIRMWARE_RELEASE_STATUS=\"latest\"/"
-        EETYPE="Latest version"
+        EETYPE="最新版本"
         ;;
       E2*)
         sed /etc/default/rpi-eeprom-update -i -e "s/^FIRMWARE_RELEASE_STATUS.*/FIRMWARE_RELEASE_STATUS=\"default\"/"
-        EETYPE="Factory default"
+        EETYPE="出厂默认"
         ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised bootloader option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的引导加载程序选项" 20 60 2
         return 1
         ;;
     esac
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --yesno "$EETYPE bootloader selected - will be loaded at next reboot.\n\nReset bootloader to default configuration?" 20 60 2
+      whiptail --yesno "已选择 $EETYPE 引导加载程序 - 将在下次重启时加载。\n\n将引导加载程序重置为默认配置？" 20 60 2
       DEFAULTS=$?
     else
       DEFAULTS=$2
     fi
-    if [ "$DEFAULTS" -eq 0 ]; then # yes
+    if [ "$DEFAULTS" -eq 0 ]; then # 是
       get_bootloader_filename
       if [ "${FILNAME}" = "none" ]; then
          if [ "$INTERACTIVE" = True ]; then
@@ -2396,11 +2395,11 @@ do_boot_rom() {
       fi
       rpi-eeprom-update -d -f $FILNAME
       if [ "$INTERACTIVE" = True ]; then
-         whiptail --msgbox "Bootloader reset to default configuration" 20 60 2
+         whiptail --msgbox "引导加载程序已重置为默认配置" 20 60 2
       fi
     else
       if [ "$INTERACTIVE" = True ]; then
-        whiptail --msgbox "Bootloader not reset to defaults" 20 60 2
+        whiptail --msgbox "引导加载程序未重置为默认值" 20 60 2
       fi
     fi
     ASK_TO_REBOOT=1
@@ -2426,7 +2425,7 @@ get_boot_splash() {
 do_boot_splash() {
   if [ ! -e /usr/share/plymouth/themes/pix/pix.script ]; then
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "The splash screen is not installed so cannot be activated" 20 60 2
+      whiptail --msgbox "启动画面未安装，因此无法激活" 20 60 2
     fi
     return 1
   fi
@@ -2435,7 +2434,7 @@ do_boot_splash() {
     DEFAULT=
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to show the splash screen at boot?" $DEFAULT 20 60 2
+    whiptail --yesno "您想在启动时显示启动画面吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -2451,7 +2450,7 @@ do_boot_splash() {
       sed -i /etc/default/grub -e "s/GRUB_CMDLINE_LINUX_DEFAULT=\" /GRUB_CMDLINE_LINUX_DEFAULT=\"/"
       update-grub
     fi
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     if is_pi ; then
       if grep -q "splash" $CMDLINE ; then
@@ -2467,12 +2466,12 @@ do_boot_splash() {
       sed -i /etc/default/grub -e "s/GRUB_CMDLINE_LINUX_DEFAULT=\" /GRUB_CMDLINE_LINUX_DEFAULT=\"/"
       update-grub
     fi
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Splash screen at boot is $STATUS" 20 60 1
+    whiptail --msgbox "启动时的启动画面已$STATUS" 20 60 1
   fi
 }
 
@@ -2500,7 +2499,7 @@ get_camera() {
 
 do_camera() {
   if [ $(deb_ver) -le 10 ] && [ ! -e /boot${FIRMWARE}/start_x.elf ]; then
-    whiptail --msgbox "Your firmware appears to be out of date (no start_x.elf). Please update" 20 60 2
+    whiptail --msgbox "您的固件似乎已过时（没有 start_x.elf）。请更新" 20 60 2
     return 1
   fi
   sed $CONFIG -i -e "s/^startx/#startx/"
@@ -2513,7 +2512,7 @@ do_camera() {
     CURRENT=1
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like the camera interface to be enabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用摄像头接口吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -2531,7 +2530,7 @@ do_camera() {
     else
       set_config_var camera_auto_detect 1 $CONFIG
     fi
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     if [ $(deb_ver) -le 10 ] ; then
       set_config_var start_x 0 $CONFIG
@@ -2539,12 +2538,12 @@ do_camera() {
     else
       set_config_var camera_auto_detect 0 $CONFIG
     fi
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The camera interface is $STATUS" 20 60 1
+    whiptail --msgbox "摄像头接口已$STATUS" 20 60 1
   fi
 }
 
@@ -2564,7 +2563,7 @@ do_onewire() {
     CURRENT=1
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like the one-wire interface to be enabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用单线接口吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -2577,15 +2576,15 @@ do_onewire() {
     if ! grep -q -E "^dtoverlay=w1-gpio" $CONFIG; then
       printf "dtoverlay=w1-gpio\n" >> $CONFIG
     fi
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     sed $CONFIG -i -e "s/^dtoverlay=w1-gpio/#dtoverlay=w1-gpio/"
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The one-wire interface is $STATUS" 20 60 1
+    whiptail --msgbox "单线接口已$STATUS" 20 60 1
   fi
 }
 
@@ -2605,7 +2604,7 @@ do_legacy() {
     CURRENT=1
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to enable legacy camera support?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用旧版摄像头支持吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -2630,7 +2629,7 @@ do_legacy() {
     fi
     sed $CONFIG -i -e 's/^camera_auto_detect.*/start_x=1/g'
     sed $CONFIG -i -e 's/^dtoverlay=camera/#dtoverlay=camera/g'
-    STATUS="Legacy camera support is enabled.\n\nPlease note that this functionality is deprecated and will not be supported for future development."
+    STATUS="旧版摄像头支持已启用。\n\n请注意，此功能已弃用，将来的开发将不再支持。"
   else
     sed $CONFIG -i -e 's/^#\?dtoverlay=vc4-f\?kms-v3d/dtoverlay=vc4-kms-v3d/g'
     sed $CONFIG -i -e '/\[pi4\]/,/\[/ {/dtoverlay=vc4-kms-v3d/d}'
@@ -2643,7 +2642,7 @@ do_legacy() {
     fi
     sed $CONFIG -i -e 's/^start_x.*/camera_auto_detect=1/g'
     sed $CONFIG -i -e 's/^#dtoverlay=camera/dtoverlay=camera/g'
-    STATUS="Legacy camera support is disabled."
+    STATUS="旧版摄像头支持已禁用。"
   fi
   if [ "$INTERACTIVE" = True ]; then
     whiptail --msgbox "$STATUS" 20 60 1
@@ -2652,7 +2651,7 @@ do_legacy() {
 
 do_gldriver() {
   if [ ! -e /boot${FIRMWARE}/overlays/vc4-kms-v3d.dtbo ]; then
-    whiptail --msgbox "Driver and kernel not present on your system. Please update" 20 60 2
+    whiptail --msgbox "您的系统上不存在驱动程序和内核。请更新" 20 60 2
     return 1
   fi
   for package in gldriver-test libgl1-mesa-dri; do
@@ -2661,12 +2660,12 @@ do_gldriver() {
     fi
   done
   if [ -n "$missing_packages" ] && ! apt-get install $missing_packages; then
-    whiptail --msgbox "Required packages not found, please install: ${missing_packages}" 20 60 2
+    whiptail --msgbox "未找到所需的软件包，请安装：${missing_packages}" 20 60 2
     return 1
   fi
-  GLOPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "GL Driver" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-    "G1 Legacy" "Original non-GL desktop driver" \
-    "G2 GL (Full KMS)" "OpenGL desktop driver with full KMS" \
+  GLOPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "GL 驱动" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+    "G1 旧版" "原始非 GL 桌面驱动" \
+    "G2 GL (完整 KMS)" "带完整 KMS 的 OpenGL 桌面驱动" \
     3>&1 1>&2 2>&3)
   if [ $? -eq 0 ]; then
     case "$GLOPT" in
@@ -2676,7 +2675,7 @@ do_gldriver() {
         fi
         sed $CONFIG -i -e "s/^dtoverlay=vc4-fkms-v3d/#dtoverlay=vc4-fkms-v3d/g"
         sed $CONFIG -i -e "s/^dtoverlay=vc4-kms-v3d/#dtoverlay=vc4-kms-v3d/g"
-        STATUS="The GL driver is disabled."
+        STATUS="GL 驱动已禁用。"
         ;;
       G2*)
         if ! sed -n "/\[pi4\]/,/\[/ !p" $CONFIG | grep -q "^dtoverlay=vc4-kms-v3d" ; then
@@ -2687,10 +2686,10 @@ do_gldriver() {
         if ! sed -n "/\[pi4\]/,/\[/ !p" $CONFIG | grep -q "^dtoverlay=vc4-kms-v3d" ; then
           printf "[all]\ndtoverlay=vc4-kms-v3d\n" >> $CONFIG
         fi
-        STATUS="The full KMS GL driver is enabled."
+        STATUS="完整 KMS GL 驱动已启用。"
         ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised boot option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的启动选项" 20 60 2
         return 1
         ;;
     esac
@@ -2708,7 +2707,7 @@ do_xcompmgr() {
     CURRENT=1
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like the xcompmgr composition manager to be enabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用 xcompmgr 合成管理器吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -2724,19 +2723,19 @@ do_xcompmgr() {
 [Desktop Entry]
 Type=Application
 Name=xcompmgr
-Comment=Start xcompmgr compositor
+Comment=启动 xcompmgr 合成器
 NoDisplay=true
 Exec=/usr/lib/raspi-config/cmstart.sh
 EOF
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     rm -f /etc/xdg/autostart/xcompmgr.desktop
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The xcompmgr composition manager is $STATUS" 20 60 1
+    whiptail --msgbox "xcompmgr 合成管理器已$STATUS" 20 60 1
   fi
 }
 
@@ -2748,7 +2747,7 @@ do_glamor() {
     CURRENT=0
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like glamor acceleration to be enabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用 glamor 加速吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -2760,24 +2759,24 @@ do_glamor() {
     systemctl disable glamor-test.service
     systemctl stop glamor-test.service
     rm -f /usr/share/X11/xorg.conf.d/20-noglamor.conf
-    STATUS=enabled
+    STATUS=已启用
   elif [ $RET -eq 1 ]; then
     systemctl enable glamor-test.service &&
     systemctl start glamor-test.service &&
-    STATUS=disabled
+    STATUS=已禁用
   else
     return $RET
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Glamor acceleration is $STATUS" 20 60 1
+    whiptail --msgbox "Glamor 加速已$STATUS" 20 60 1
   fi
 }
 
 do_wayland() {
   if [ "$INTERACTIVE" = True ]; then
-    RET=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Wayland Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-        "W1 X11" "Openbox window manager with X11 backend" \
-        "W2 Labwc" "Labwc window manager with Wayland backend" \
+    RET=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "Wayland 选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+        "W1 X11" "带 X11 后端的 Openbox 窗口管理器" \
+        "W2 Labwc" "带 Wayland 后端的 Labwc 窗口管理器" \
         3>&1 1>&2 2>&3)
   else
     RET=$1
@@ -2806,7 +2805,7 @@ do_wayland() {
         if [ -e "/var/lib/AccountsService/users/$USER" ] ; then
           sed "/var/lib/AccountsService/users/$USER" -i -e "s/XSession=.*/XSession=$XSESSION/"
         fi
-        STATUS="Openbox on X11"
+        STATUS="X11 上的 Openbox"
         ;;
       W2*)
         sed /etc/lightdm/lightdm.conf -i -e "s/^#\\?user-session.*/user-session=$WSESSION/"
@@ -2818,10 +2817,10 @@ do_wayland() {
         if [ -e "/var/lib/AccountsService/users/$USER" ] ; then
           sed "/var/lib/AccountsService/users/$USER" -i -e "s/XSession=.*/XSession=$WSESSION/"
         fi
-        STATUS="Labwc on Wayland"
+        STATUS="Wayland 上的 Labwc"
         ;;
       *)
-        whiptail --msgbox "Programmer error, unrecognised boot option" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的启动选项" 20 60 2
         return 1
         ;;
     esac
@@ -2830,7 +2829,7 @@ do_wayland() {
     return 0
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "$STATUS is active" 20 60 1
+    whiptail --msgbox "$STATUS 已激活" 20 60 1
   fi
 }
 
@@ -2852,7 +2851,7 @@ do_net_names () {
     CURRENT=1
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to enable predictable network interface names?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用可预测的网络接口名称吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -2864,38 +2863,38 @@ do_net_names () {
     sed -i "$CMDLINE" -e "s/net.ifnames=0 *//"
     rm -f /etc/systemd/network/99-default.link
     rm -f /etc/systemd/network/73-usb-net-by-mac.link
-    STATUS=enabled
+    STATUS=已启用
   elif [ "$RET" -eq 1 ]; then
     ln -sf /dev/null /etc/systemd/network/99-default.link
     ln -sf /dev/null /etc/systemd/network/73-usb-net-by-mac.link
-    STATUS=disabled
+    STATUS=已禁用
   else
     return "$RET"
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Predictable network interface names are $STATUS" 20 60 1
+    whiptail --msgbox "可预测的网络接口名称已$STATUS" 20 60 1
   fi
 }
 
 do_update() {
   apt-get update &&
   apt-get install raspi-config &&
-  printf "Sleeping 5 seconds before reloading raspi-config\n" &&
+  printf "在重新加载 raspi-config 之前休眠 5 秒\n" &&
   sleep 5 &&
   exec raspi-config
 }
 
 do_audio() {
   if is_pulseaudio ; then
-    whiptail --msgbox "raspi-config cannot configure audio when PulseAudio or PipeWire are in use.\n\nThese can be controlled with the taskbar plugin." 20 60 1
+    whiptail --msgbox "当使用 PulseAudio 或 PipeWire 时，raspi-config 无法配置音频。\n\n这些可以通过任务栏插件控制。" 20 60 1
     return 0
   else
     if aplay -l | grep -q "bcm2835 ALSA"; then
       if [ "$INTERACTIVE" = True ]; then
-        AUDIO_OUT=$(whiptail --menu "Choose the audio output" 20 60 10 \
-          "0" "Auto" \
-          "1" "Force 3.5mm ('headphone') jack" \
-          "2" "Force HDMI" \
+        AUDIO_OUT=$(whiptail --menu "选择音频输出" 20 60 10 \
+          "0" "自动" \
+          "1" "强制 3.5mm（'耳机'）插孔" \
+          "2" "强制 HDMI" \
           3>&1 1>&2 2>&3)
       else
         AUDIO_OUT=$1
@@ -2924,12 +2923,12 @@ do_audio() {
           n=$(( n+1 ))
         done
         if [ $n -eq 0 ] ; then
-          whiptail --msgbox "No audio devices found" 20 60 1
+          whiptail --msgbox "未找到音频设备" 20 60 1
           false
         else
           oIFS="$IFS"
           IFS="/"
-          AUDIO_OUT=$(whiptail --menu "Choose the audio output" 20 60 10 ${array} 3>&1 1>&2 2>&3)
+          AUDIO_OUT=$(whiptail --menu "选择音频输出" 20 60 10 ${array} 3>&1 1>&2 2>&3)
           IFS="$oIFS"
         fi
       else
@@ -2969,28 +2968,28 @@ do_resolution() {
     CMODE=$(get_config_var hdmi_mode $CONFIG)
     CGROUP=$(get_config_var hdmi_group $CONFIG)
     if [ $CMODE -eq 0 ] ; then
-      CSET="Default"
+      CSET="默认"
     elif [ $CGROUP -eq 2 ] ; then
-      CSET="DMT Mode "$CMODE
+      CSET="DMT 模式 "$CMODE
     else
-      CSET="CEA Mode "$CMODE
+      CSET="CEA 模式 "$CMODE
     fi
     oIFS="$IFS"
     IFS="/"
     if tvservice -d /dev/null | grep -q Nothing ; then
-      value="Default/720x480/DMT Mode 4/640x480 60Hz 4:3/DMT Mode 9/800x600 60Hz 4:3/DMT Mode 16/1024x768 60Hz 4:3/DMT Mode 85/1280x720 60Hz 16:9/DMT Mode 35/1280x1024 60Hz 5:4/DMT Mode 51/1600x1200 60Hz 4:3/DMT Mode 82/1920x1080 60Hz 16:9/"
+      value="默认/720x480/DMT 模式 4/640x480 60Hz 4:3/DMT 模式 9/800x600 60Hz 4:3/DMT 模式 16/1024x768 60Hz 4:3/DMT 模式 85/1280x720 60Hz 16:9/DMT 模式 35/1280x1024 60Hz 5:4/DMT 模式 51/1600x1200 60Hz 4:3/DMT 模式 82/1920x1080 60Hz 16:9/"
     else
-      value="Default/Monitor preferred resolution/"
-      value=$value$(tvservice -m CEA | grep progressive | cut -b 12- | sed 's/mode \([0-9]\+\): \([0-9]\+\)x\([0-9]\+\) @ \([0-9]\+\)Hz \([0-9]\+\):\([0-9]\+\), clock:[0-9]\+MHz progressive/CEA Mode \1\/\2x\3 \4Hz \5:\6/' | tr '\n' '/')
-      value=$value$(tvservice -m DMT | grep progressive | cut -b 12- | sed 's/mode \([0-9]\+\): \([0-9]\+\)x\([0-9]\+\) @ \([0-9]\+\)Hz \([0-9]\+\):\([0-9]\+\), clock:[0-9]\+MHz progressive/DMT Mode \1\/\2x\3 \4Hz \5:\6/' | tr '\n' '/')
+      value="默认/显示器首选分辨率/"
+      value=$value$(tvservice -m CEA | grep progressive | cut -b 12- | sed 's/mode \([0-9]\+\): \([0-9]\+\)x\([0-9]\+\) @ \([0-9]\+\)Hz \([0-9]\+\):\([0-9]\+\), clock:[0-9]\+MHz progressive/CEA 模式 \1\/\2x\3 \4Hz \5:\6/' | tr '\n' '/')
+      value=$value$(tvservice -m DMT | grep progressive | cut -b 12- | sed 's/mode \([0-9]\+\): \([0-9]\+\)x\([0-9]\+\) @ \([0-9]\+\)Hz \([0-9]\+\):\([0-9]\+\), clock:[0-9]\+MHz progressive/DMT 模式 \1\/\2x\3 \4Hz \5:\6/' | tr '\n' '/')
     fi
-    RES=$(whiptail --default-item $CSET --menu "Choose screen resolution" 20 60 10 ${value} 3>&1 1>&2 2>&3)
+    RES=$(whiptail --default-item $CSET --menu "选择屏幕分辨率" 20 60 10 ${value} 3>&1 1>&2 2>&3)
     STATUS=$?
     IFS="$oIFS"
     if [ $STATUS -eq 0 ] ; then
       GRS=$(echo "$RES" | cut -d ' ' -f 1)
       MODE=$(echo "$RES" | cut -d ' ' -f 3)
-      if [ $GRS = "Default" ] ; then
+      if [ $GRS = "默认" ] ; then
         MODE=0
       elif [ $GRS = "DMT" ] ; then
         GROUP=2
@@ -3015,17 +3014,17 @@ do_resolution() {
     fi
     if [ "$INTERACTIVE" = True ]; then
       if [ $MODE -eq 0 ] ; then
-        whiptail --msgbox "The resolution is set to default" 20 60 1
+        whiptail --msgbox "分辨率已设置为默认" 20 60 1
       else
-        whiptail --msgbox "The resolution is set to $GRS mode $MODE" 20 60 1
+        whiptail --msgbox "分辨率已设置为 $GRS 模式 $MODE" 20 60 1
       fi
     fi
     if [ $MODE -eq 0 ] ; then
-      TSET="Default"
+      TSET="默认"
     elif [ $GROUP -eq 2 ] ; then
-      TSET="DMT Mode "$MODE
+      TSET="DMT 模式 "$MODE
     else
-      TSET="CEA Mode "$MODE
+      TSET="CEA 模式 "$MODE
     fi
     if [ "$TSET" != "$CSET" ] ; then
       ASK_TO_REBOOT=1
@@ -3057,7 +3056,7 @@ do_vnc_resolution() {
     if [ "$CUR" = "" ] ; then
       CUR=640x480
     fi
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --default-item $CUR --menu "Set VNC Resolution" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --default-item $CUR --menu "设置 VNC 分辨率" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
       "640x480" "" "720x480" "" "800x600" "" "1024x768" "" "1280x720" "" "1280x1024" "" "1600x1200" "" "1920x1080" "" 3>&1 1>&2 2>&3)
     RET=$?
   else
@@ -3085,13 +3084,13 @@ do_vnc_resolution() {
 [Desktop Entry]
 Type=Application
 Name=vnc_xrandr
-Comment=Set resolution for VNC
+Comment=为 VNC 设置分辨率
 NoDisplay=true
 Exec=sh -c "if ! (xrandr | grep -q -w connected) ; then /usr/bin/xrandr --fb $FUN ; fi"
 EOF
     fi
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "The resolution is set to $FUN" 20 60 1
+      whiptail --msgbox "分辨率已设置为 $FUN" 20 60 1
       ASK_TO_REBOOT=1
     fi
   fi
@@ -3119,43 +3118,44 @@ do_wifi_ssid_passphrase() {
 
     if [ -z "$IFACE" ]; then
       if [ "$INTERACTIVE" = True ]; then
-        whiptail --msgbox "No wireless interface found" 20 60
+        whiptail --msgbox "未找到无线接口" 20 60
       fi
       return 1
     fi
 
     if ! wpa_cli -i "$IFACE" status > /dev/null 2>&1; then
       if [ "$INTERACTIVE" = True ]; then
-        whiptail --msgbox "Could not communicate with wpa_supplicant" 20 60
+        whiptail --msgbox "无法与 wpa_supplicant 通信" 20 60
       fi
       return 1
     fi
   elif ! systemctl -q is-active NetworkManager; then
     if [ "$INTERACTIVE" = True ]; then
-        whiptail --msgbox "No supported network connection manager found" 20 60
+        whiptail --msgbox "未找到支持的网络连接管理器" 20 60
       fi
       return 1
   fi
 
   SSID="$1"
+
   while [ -z "$SSID" ] && [ "$INTERACTIVE" = True ]; do
-    if ! SSID=$(whiptail --inputbox "Please enter SSID" 20 60 3>&1 1>&2 2>&3); then
+    if ! SSID=$(whiptail --inputbox "请输入 SSID" 20 60 3>&1 1>&2 2>&3); then
       return 0
     elif [ -z "$SSID" ]; then
-      whiptail --msgbox "SSID cannot be empty. Please try again." 20 60
+      whiptail --msgbox "SSID 不能为空。请重试。" 20 60
     fi
   done
 
   PASSPHRASE="$2"
   while [ "$INTERACTIVE" = True ]; do
-    if ! PASSPHRASE=$(whiptail --passwordbox "Please enter passphrase. Leave it empty if none." 20 60 3>&1 1>&2 2>&3); then
+    if ! PASSPHRASE=$(whiptail --passwordbox "请输入密码。如果没有密码请留空。" 20 60 3>&1 1>&2 2>&3); then
       return 0
     else
       break
     fi
   done
 
-  # Escape special characters for embedding in regex below
+  # 转义特殊字符以便嵌入到下面的正则表达式中
   ssid="$(echo "$SSID" \
    | sed 's;\\;\\\\;g' \
    | sed -e 's;\.;\\\.;g' \
@@ -3206,7 +3206,7 @@ do_wifi_ssid_passphrase() {
     else
       wpa_cli -i "$IFACE" remove_network "$ID" > /dev/null 2>&1
       if [ "$INTERACTIVE" = True ]; then
-        whiptail --msgbox "Failed to set SSID or passphrase" 20 60
+        whiptail --msgbox "设置 SSID 或密码失败" 20 60
       fi
     fi
     wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
@@ -3227,11 +3227,11 @@ do_wifi_ssid_passphrase() {
 }
 
 get_wifi_power_save() {
-  # Check if the configuration file exists (simpler approach)
+  # 检查配置文件是否存在（更简单的方法）
   if [ -f /etc/NetworkManager/conf.d/default-wifi-powersave-off.conf ]; then
-    echo 0  # Power saving is disabled
+    echo 0  # 省电已禁用
   else
-    echo 1  # Power saving is enabled (default)
+    echo 1  # 省电已启用（默认）
   fi
 }
 
@@ -3245,36 +3245,36 @@ do_wifi_power_save() {
   fi
 
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to enable WLAN power saving?\n\nNote: Disabling power saving may improve connection stability but increase power consumption." $DEFAULT 20 70 2
+    whiptail --yesno "您想启用 WLAN 省电模式吗？\n\n注意：禁用省电模式可能会提高连接稳定性，但会增加功耗。" $DEFAULT 20 70 2
     RET=$?
   else
     RET=$1
   fi
 
-  # Create NetworkManager conf.d directory if it doesn't exist
+  # 如果不存在则创建 NetworkManager conf.d 目录
   mkdir -p /etc/NetworkManager/conf.d
 
   if [ "$RET" -eq 0 ]; then
-    # Enable power saving - remove the configuration file
+    # 启用省电 - 删除配置文件
     rm -f /etc/NetworkManager/conf.d/default-wifi-powersave-off.conf
-    STATUS="enabled"
+    STATUS="已启用"
   elif [ "$RET" -eq 1 ]; then
-    # Disable power saving - create configuration file
+    # 禁用省电 - 创建配置文件
     cat > /etc/NetworkManager/conf.d/default-wifi-powersave-off.conf << EOF
 [connection]
 wifi.powersave = 2
 EOF
-    STATUS="disabled"
+    STATUS="已禁用"
   else
     return "$RET"
   fi
 
-  # Reload NetworkManager configuration for persistence
+  # 重新加载 NetworkManager 配置以保持持久性
   if systemctl -q is-active NetworkManager; then
     systemctl reload NetworkManager 2>/dev/null || true
   fi
 
-  # Apply the change immediately to current interface
+  # 立即将更改应用到当前接口
   IFACE="$(list_wlan_interfaces | head -n 1)"
   if [ -n "$IFACE" ] && command -v iw >/dev/null 2>&1; then
     if [ "$RET" -eq 0 ]; then
@@ -3285,16 +3285,16 @@ EOF
   fi
 
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "WLAN power saving is $STATUS\n\nThe change has been applied immediately and made persistent for future connections." 20 75 1
+    whiptail --msgbox "WLAN 省电模式已$STATUS\n\n更改已立即应用，并对未来的连接保持持久。" 20 75 1
   fi
 }
 
 get_link_local_fallback() {
-  # Check if the configuration file exists
+  # 检查配置文件是否存在
   if [ -f /etc/NetworkManager/conf.d/link-local.conf ]; then
-    echo 1  # Link-local fallback is enabled
+    echo 1  # 链路本地回退已启用
   else
-    echo 0  # Link-local fallback is disabled (default)
+    echo 0  # 链路本地回退已禁用（默认）
   fi
 }
 
@@ -3307,49 +3307,49 @@ do_link_local_fallback() {
   fi
 
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like to enable link-local fallback?\n\nNote: This assigns a 169.254.x.x address immediately, before trying DHCP. Enable only if you understand this behavior." $DEFAULT 20 75 2
+    whiptail --yesno "您想启用链路本地回退吗？\n\n注意：这会在尝试 DHCP 之前立即分配 169.254.x.x 地址。仅在您了解此行为时启用。" $DEFAULT 20 75 2
     RET=$?
   else
     RET=$1
   fi
 
   if [ "$RET" -eq 0 ]; then
-    STATUS="enabled"
+    STATUS="已启用"
   else
-    STATUS="disabled"
+    STATUS="已禁用"
   fi
 
-  # Only make changes if the setting is actually changing
+  # 仅在设置实际更改时进行更改
   if [ "$RET" -eq 0 ] && [ "$CURRENT" -eq 0 ]; then
-    # Enable link-local fallback
+    # 启用链路本地回退
     mkdir -p /etc/NetworkManager/conf.d
     cat > /etc/NetworkManager/conf.d/link-local.conf << EOF
-# Created/managed by raspi-config
+# 由 raspi-config 创建/管理
 [connection]
 ipv4.link-local=4
 EOF
     ASK_TO_REBOOT=1
   elif [ "$RET" -eq 1 ] && [ "$CURRENT" -eq 1 ]; then
-    # Disable link-local fallback
+    # 禁用链路本地回退
     rm -f /etc/NetworkManager/conf.d/link-local.conf
     ASK_TO_REBOOT=1
   fi
 
-  # Reload NetworkManager configuration for persistence
+  # 重新加载 NetworkManager 配置以保持持久性
   if systemctl -q is-active NetworkManager; then
     systemctl reload NetworkManager 2>/dev/null || true
   fi
 
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Link-local fallback is $STATUS" 20 60 1
+    whiptail --msgbox "链路本地回退已$STATUS" 20 60 1
   fi
 }
 
 do_finish() {
   disable_raspi_config_at_boot
   if [ $ASK_TO_REBOOT -eq 1 ]; then
-    whiptail --yesno "Would you like to reboot now?" 20 60 2
-    if [ $? -eq 0 ]; then # yes
+    whiptail --yesno "您想现在重启吗？" 20 60 2
+    if [ $? -eq 0 ]; then # 是
       sync
       reboot
     fi
@@ -3362,7 +3362,7 @@ get_json_string_val() {
   sed -n -e "s/^[[:space:]]*\"$2\"[[:space:]]*:[[:space:]]*\"\(.*\)\"[[:space:]]*,$/\1/p" $1
 }
 
-# TODO: This is probably broken
+# TODO: 这可能已损坏
 do_apply_os_config() {
   [ -e /boot/os_config.json ] || return 0
   NOOBSFLAVOUR=$(get_json_string_val /boot/os_config.json flavour)
@@ -3370,17 +3370,17 @@ do_apply_os_config() {
   NOOBSKEYBOARD=$(get_json_string_val /boot/os_config.json keyboard)
 
   if [ -n "$NOOBSFLAVOUR" ]; then
-    printf "Setting flavour to %s based on os_config.json from NOOBS. May take a while\n" "$NOOBSFLAVOUR"
+    printf "根据 NOOBS 的 os_config.json 将风格设置为 %s。可能需要一段时间\n" "$NOOBSFLAVOUR"
 
-    printf "Unrecognised flavour. Ignoring\n"
+    printf "无法识别的风格。忽略\n"
   fi
 
-  # TODO: currently ignores en_gb settings as we assume we are running in a
-  # first boot context, where UK English settings are default
+  # TODO: 目前忽略 en_gb 设置，因为我们假设在
+  # 首次启动上下文中运行，其中英国英语设置是默认的
   case "$NOOBSLANGUAGE" in
     "en")
       if [ "$NOOBSKEYBOARD" = "gb" ]; then
-        DEBLANGUAGE="" # UK english is the default, so ignore
+        DEBLANGUAGE="" # 英国英语是默认的，所以忽略
       else
         DEBLANGUAGE="en_US.UTF-8"
       fi
@@ -3413,17 +3413,17 @@ do_apply_os_config() {
       DEBLANGUAGE="zh_CN.UTF-8"
       ;;
     *)
-      printf "Language '%s' not handled currently. Run sudo raspi-config to set up" "$NOOBSLANGUAGE"
+      printf "语言 '%s' 目前未处理。运行 sudo raspi-config 进行设置" "$NOOBSLANGUAGE"
       ;;
   esac
 
   if [ -n "$DEBLANGUAGE" ]; then
-    printf "Setting language to %s based on os_config.json from NOOBS. May take a while\n" "$DEBLANGUAGE"
+    printf "根据 NOOBS 的 os_config.json 将语言设置为 %s。可能需要一段时间\n" "$DEBLANGUAGE"
     do_change_locale "$DEBLANGUAGE"
   fi
 
   if [ -n "$NOOBSKEYBOARD" -a "$NOOBSKEYBOARD" != "gb" ]; then
-    printf "Setting keyboard layout to %s based on os_config.json from NOOBS. May take a while\n" "$NOOBSKEYBOARD"
+    printf "根据 NOOBS 的 os_config.json 将键盘布局设置为 %s。可能需要一段时间\n" "$NOOBSKEYBOARD"
     do_configure_keyboard "$NOOBSKEYBOARD"
   fi
   return 0
@@ -3456,17 +3456,17 @@ is_uname_current() {
 enable_overlayfs() {
   if [ "$(awk '/MemTotal/{print $2; exit}' /proc/meminfo)" -le 262144 ]; then
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "At least 512MB of RAM is recommended for overlay filesystem" 20 60 1
+      whiptail --msgbox "建议至少 512MB 的 RAM 用于覆盖文件系统" 20 60 1
     else
-      echo "At least 512MB of RAM is recommended for overlay filesystem"
+      echo "建议至少 512MB 的 RAM 用于覆盖文件系统"
     fi
     return 1
   fi
   is_installed overlayroot || apt-get install -y overlayroot
-  # mount the boot partition as writable if it isn't already
+  # 如果启动分区尚未可写，则将其挂载为可写
   if [ $(get_bootro_now) -eq 0 ] ; then
     if ! mount -o remount,rw /boot${FIRMWARE} 2>/dev/null ; then
-      echo "Unable to mount boot partition as writable - cannot enable"
+      echo "无法将启动分区挂载为可写 - 无法启用"
       return 1
     fi
     BOOTRO=yes
@@ -3474,23 +3474,23 @@ enable_overlayfs() {
     BOOTRO=no
   fi
 
-  # modify command line
+  # 修改命令行
   if ! grep -q "overlayroot=tmpfs" $CMDLINE ; then
     sed -i $CMDLINE -e "s/^/overlayroot=tmpfs /"
   fi
 
   if [ "$BOOTRO" = "yes" ] ; then
     if ! mount -o remount,ro /boot${FIRMWARE} 2>/dev/null ; then
-      echo "Unable to remount boot partition as read-only"
+      echo "无法将启动分区重新挂载为只读"
     fi
   fi
 }
 
 disable_overlayfs() {
-  # mount the boot partition as writable if it isn't already
+  # 如果启动分区尚未可写，则将其挂载为可写
   if [ $(get_bootro_now) -eq 0 ] ; then
     if ! mount -o remount,rw /boot${FIRMWARE} 2>/dev/null ; then
-      echo "Unable to mount boot partition as writable - cannot disable"
+      echo "无法将启动分区挂载为可写 - 无法禁用"
       return 1
     fi
     BOOTRO=yes
@@ -3498,19 +3498,20 @@ disable_overlayfs() {
     BOOTRO=no
   fi
 
-  # modify command line
+
+  # 修改命令行
   sed -i $CMDLINE -e "s/\(.*\)overlayroot=tmpfs \(.*\)/\1\2/"
 
   if [ "$BOOTRO" = "yes" ] ; then
     if ! mount -o remount,ro /boot${FIRMWARE} 2>/dev/null ; then
-      echo "Unable to remount boot partition as read-only"
+      echo "无法将启动分区重新挂载为只读"
     fi
   fi
 }
 
 enable_bootro() {
   if [ $(get_overlay_now) -eq 0 ] ; then
-    echo "Overlay in use; cannot update fstab"
+    echo "覆盖正在使用；无法更新 fstab"
     return 1
   fi
   sed -i /etc/fstab -e "s#\(.*/boot$FIRMWARE.*\)defaults\(.*\)#\1defaults,ro\2#"
@@ -3518,7 +3519,7 @@ enable_bootro() {
 
 disable_bootro() {
   if [ $(get_overlay_now) -eq 0 ] ; then
-    echo "Overlay in use; cannot update fstab"
+    echo "覆盖正在使用；无法更新 fstab"
     return 1
   fi
   sed -i /etc/fstab -e "s#\(.*/boot$FIRMWARE.*\)defaults,ro\(.*\)#\1defaults\2#"
@@ -3527,20 +3528,20 @@ disable_bootro() {
 do_overlayfs() {
   DEFAULT=--defaultno
   CURRENT=0
-  STATUS="disabled"
+  STATUS="已禁用"
 
   if [ "$INTERACTIVE" = True ] && ! is_uname_current; then
-    whiptail --msgbox "Could not find modules for the running kernel ($(uname -r))." 20 60 1
+    whiptail --msgbox "找不到正在运行的内核 ($(uname -r)) 的模块。" 20 60 1
     return 1
   fi
 
   if [ $(get_overlay_conf) -eq 0 ] ; then
     DEFAULT=
     CURRENT=1
-    STATUS="enabled"
+    STATUS="已启用"
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like the overlay file system to be enabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想启用覆盖文件系统吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -3548,45 +3549,45 @@ do_overlayfs() {
   if [ $RET -eq $CURRENT ]; then
     if [ $RET -eq 0 ]; then
       if enable_overlayfs; then
-        STATUS="enabled"
+        STATUS="已启用"
         ASK_TO_REBOOT=1
       else
-        STATUS="unchanged"
+        STATUS="未更改"
       fi
     elif [ $RET -eq 1 ]; then
       if disable_overlayfs; then
-        STATUS="disabled"
+        STATUS="已禁用"
         ASK_TO_REBOOT=1
       else
-        STATUS="unchanged"
+        STATUS="未更改"
       fi
     else
       return $RET
     fi
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The overlay file system is $STATUS." 20 60 1
+    whiptail --msgbox "覆盖文件系统已$STATUS。" 20 60 1
   fi
   if [ $(get_overlay_now) -eq 0 ] ; then
     if [ $(get_bootro_conf) -eq 0 ] ; then
-      BPRO="read-only"
+      BPRO="只读"
     else
-      BPRO="writable"
+      BPRO="可写"
     fi
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "The boot partition is currently $BPRO. This cannot be changed while an overlay file system is enabled." 20 60 1
+      whiptail --msgbox "启动分区当前为$BPRO。启用覆盖文件系统时无法更改此设置。" 20 60 1
     fi
   else
     DEFAULT=--defaultno
     CURRENT=0
-    STATUS="writable"
+    STATUS="可写"
     if [ $(get_bootro_conf) -eq 0 ]; then
       DEFAULT=
       CURRENT=1
-      STATUS="read-only"
+      STATUS="只读"
     fi
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --yesno "Would you like the boot partition to be write-protected?" $DEFAULT 20 60 2
+      whiptail --yesno "您想对启动分区进行写保护吗？" $DEFAULT 20 60 2
       RET=$?
     else
       RET=$1
@@ -3594,36 +3595,37 @@ do_overlayfs() {
     if [ $RET -eq $CURRENT ]; then
       if [ $RET -eq 0 ]; then
         if enable_bootro; then
-          STATUS="read-only"
+          STATUS="只读"
           ASK_TO_REBOOT=1
         else
-          STATUS="unchanged"
+          STATUS="未更改"
         fi
       elif [ $RET -eq 1 ]; then
         if disable_bootro; then
-          STATUS="writable"
+          STATUS="可写"
           ASK_TO_REBOOT=1
         else
-          STATUS="unchanged"
+          STATUS="未更改"
         fi
       else
         return $RET
       fi
     fi
     if [ "$INTERACTIVE" = True ]; then
-      whiptail --msgbox "The boot partition is $STATUS." 20 60 1
+      whiptail --msgbox "启动分区为$STATUS。" 20 60 1
     fi
   fi
 }
 
 get_proxy() {
   SCHEME="$1"
+
   VAR_NAME="${SCHEME}_proxy"
   if [ -f /etc/profile.d/proxy.sh ]; then
     # shellcheck disable=SC1091
     . /etc/profile.d/proxy.sh
   fi
-  eval "echo \$$VAR_NAME"
+  eval "echo \$VAR_NAME"
 }
 
 do_proxy() {
@@ -3637,9 +3639,9 @@ do_proxy() {
   fi
   if [ "$INTERACTIVE" = True ]; then
     if [ "$SCHEMES" = "no" ]; then
-      STRING="Please enter a comma separated list of addresses that should be excluded from using proxy servers.\\nEg: localhost,127.0.0.1,localaddress,.localdomain.com"
+      STRING="请输入应排除使用代理服务器的地址列表（用逗号分隔）。\\n例如：localhost,127.0.0.1,localaddress,.localdomain.com"
     else
-      STRING="Please enter proxy address.\\nEg: http://user:pass@proxy:8080"
+      STRING="请输入代理地址。\\n例如：http://user:pass@proxy:8080"
     fi
     if ! ADDRESS="$(whiptail --inputbox "$STRING"  20 60 "$CURRENT" 3>&1 1>&2 2>&3)"; then
       return 0
@@ -3660,10 +3662,10 @@ do_proxy() {
       fi
     fi
     if [ -z "$ADDRESS" ]; then
-      STATUS=cleared
+      STATUS=已清除
       continue
     fi
-    STATUS=updated
+    STATUS=已更新
     SCHEME_UPPER="$(echo "$SCHEME" | tr '[:lower:]' '[:upper:]')"
     echo "export ${SCHEME_UPPER}_PROXY=\"$ADDRESS\"" >> /etc/profile.d/proxy.sh
     if [ "$SCHEME" != "rsync" ]; then
@@ -3674,7 +3676,7 @@ do_proxy() {
     fi
   done
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "Proxy settings $STATUS" 20 60 1
+    whiptail --msgbox "代理设置已$STATUS" 20 60 1
   fi
 }
 
@@ -3693,24 +3695,24 @@ do_usb_current() {
     DEFAULT=
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "Would you like the USB current limit to be disabled?" $DEFAULT 20 60 2
+    whiptail --yesno "您想禁用 USB 电流限制吗？" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
   fi
   if [ $RET -eq 0 ]; then
     set_config_var usb_max_current_enable 1 $CONFIG &&
-    STATUS=disabled
+    STATUS=已禁用
   elif [ $RET -eq 1 ]; then
     sed $CONFIG -i -e "/usb_max_current_enable.*/d"
-    STATUS=enabled
+    STATUS=已启用
   else
     return $RET
   fi
 
 
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The USB current limit is $STATUS" 20 60 1
+    whiptail --msgbox "USB 电流限制已$STATUS" 20 60 1
   fi
 }
 
@@ -3730,10 +3732,10 @@ get_squeekboard() {
 
 do_squeekboard() {
   if [ "$INTERACTIVE" = True ]; then
-    OPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "On-screen Keyboard" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-      "S1 Always On" "On-screen keyboard always enabled" \
-      "S2 Autodetect" "On-screen keyboard enabled if touch device found" \
-      "S3 Always Off" "On-screen keyboard disabled" \
+    OPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "屏幕键盘" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+      "S1 始终开启" "屏幕键盘始终启用" \
+      "S2 自动检测" "如果找到触摸设备则启用屏幕键盘" \
+      "S3 始终关闭" "屏幕键盘已禁用" \
       3>&1 1>&2 2>&3)
   else
     OPT=$1
@@ -3749,7 +3751,7 @@ do_squeekboard() {
       cat > /etc/xdg/autostart/squeekboard.desktop << EOF
 [Desktop Entry]
 Name=Squeekboard
-Comment=Launch the on-screen keyboard
+Comment=启动屏幕键盘
 Exec=/usr/bin/sbout
 Terminal=false
 Type=Application
@@ -3764,14 +3766,14 @@ EOF
         PREFIX="sudo -u $USER XDG_RUNTIME_DIR=/run/user/$SUDO_UID DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$SUDO_UID/bus "
       fi
       $PREFIX sbout > /dev/null 2> /dev/null &
-      STATUS="enabled"
+      STATUS="已启用"
       ;;
     S2*)
       is_installed squeekboard || apt-get install -y squeekboard
       cat > /etc/xdg/autostart/squeekboard.desktop << EOF
 [Desktop Entry]
 Name=Squeekboard
-Comment=Launch the on-screen keyboard
+Comment=启动屏幕键盘
 Exec=/usr/bin/sbtest
 Terminal=false
 Type=Application
@@ -3787,21 +3789,21 @@ EOF
       fi
       pkill squeekboard
       $PREFIX sbtest > /dev/null 2> /dev/null &
-      STATUS="using autodetect"
+      STATUS="使用自动检测"
       ;;
     S3*)
       pkill squeekboard
       rm -f /etc/xdg/autostart/squeekboard.desktop
       sed -i '/sbout/d' $GFILE
       sed -i '/sbtest/d' $GFILE
-      STATUS="disabled"
+      STATUS="已禁用"
       ;;
     *)
       return $OPT
       ;;
   esac
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The onscreen keyboard is $STATUS" 20 60 1
+    whiptail --msgbox "屏幕键盘已$STATUS" 20 60 1
   fi
 }
 
@@ -3822,7 +3824,7 @@ do_squeek_output() {
     menu=$($PREFIX wlr-randr | grep -v ^' ' | cut -d ' ' -f 1 | tr '\n' '/' | sed 's#/#//#g')
     oIFS="$IFS"
     IFS="/"
-    OPT=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Select where the on-screen keyboard is to be shown" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+    OPT=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "选择屏幕键盘显示的位置" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
       ${menu} \
       3>&1 1>&2 2>&3)
     IFS="$oIFS"
@@ -3841,7 +3843,7 @@ do_squeek_output() {
     $PREFIX sbout > /dev/null 2> /dev/null &
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The onscreen keyboard is on $OPT" 20 60 1
+    whiptail --msgbox "屏幕键盘在 $OPT 上" 20 60 1
   fi
 }
 
@@ -3858,12 +3860,13 @@ do_sudo_pass() {
   GPSFILE="/etc/sudoers.d/010_pi-nopasswd"
   CIFILE="/etc/sudoers.d/90-cloud-init-users"
   DEFAULT=--defaultno
+
   if [ "$(get_sudo_pass)" -eq 0 ]; then
     DEFAULT=
   fi
   if [ "$INTERACTIVE" = True ]; then
     whiptail --yesno \
-      "Would you like the admin (sudo) password to be enabled?" \
+      "您想启用管理员 (sudo) 密码吗？" \
       $DEFAULT 20 60 2
     RET=$?
   else
@@ -3873,19 +3876,19 @@ do_sudo_pass() {
     if [ -e $PSFILE ] ; then rm $PSFILE ; fi
     if [ -e $GPSFILE ] ; then rm $GPSFILE ; fi
     if [ -e $CIFILE ] ; then rm $CIFILE ; fi
-    STATUS=enabled
+    STATUS=已启用
   elif [ "$RET" -eq 1 ]; then
     if [ -e $GPSFILE ] ; then rm $GPSFILE ; fi
     if [ -e $CIFILE ] ; then rm $CIFILE ; fi
       cat > $PSFILE << EOF
 $USER ALL=(ALL) NOPASSWD: ALL
 EOF
-    STATUS=disabled
+    STATUS=已禁用
   else
     return "$RET"
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "The admin password is $STATUS" 20 60 1
+    whiptail --msgbox "管理员密码已$STATUS" 20 60 1
   fi
 }
 
@@ -3894,25 +3897,25 @@ nonint() {
 }
 
 #
-# Command line options for non-interactive use
+# 非交互式使用的命令行选项
 #
 for i in $*
 do
   case $i in
   --memory-split)
     OPT_MEMORY_SPLIT=GET
-    printf "Not currently supported\n"
+    printf "当前不支持\n"
     exit 1
     ;;
   --memory-split=*)
     OPT_MEMORY_SPLIT=$(echo $i | sed 's/[-a-zA-Z0-9]*=//')
-    printf "Not currently supported\n"
+    printf "当前不支持\n"
     exit 1
     ;;
   --expand-rootfs)
     INTERACTIVE=False
     do_expand_rootfs
-    printf "Please reboot\n"
+    printf "请重启\n"
     exit 0
     ;;
   --apply-os-config)
@@ -3927,61 +3930,61 @@ do
     exit $?
     ;;
   *)
-    # unknown option
+    # 未知选项
     ;;
   esac
 done
 
 #if [ "GET" = "${OPT_MEMORY_SPLIT:-}" ]; then
-#  set -u # Fail on unset variables
+#  set -u # 在未设置变量时失败
 #  get_current_memory_split
 #  echo $CURRENT_MEMSPLIT
 #  exit 0
 #fi
 
-# Everything else needs to be run as root
+# 其他所有操作都需要以 root 身份运行
 if [ $(id -u) -ne 0 ]; then
-  printf "Script must be run as root. Try 'sudo raspi-config'\n"
+  printf "脚本必须以 root 身份运行。尝试 'sudo raspi-config'\n"
   exit 1
 fi
 
 if [ -n "${OPT_MEMORY_SPLIT:-}" ]; then
-  set -e # Fail when a command errors
+  set -e # 命令出错时失败
   set_memory_split "${OPT_MEMORY_SPLIT}"
   exit 0
 fi
 
 do_system_menu() {
   if is_pi ; then
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "System Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "S1 Wireless LAN" "Enter SSID and passphrase" \
-      "S2 Audio" "Select audio out through HDMI or 3.5mm jack" \
-      "S3 Password" "Change password for the '$USER' user" \
-      "S4 Hostname" "Set name for this computer on a network" \
-      "S5 Boot" "Select boot into desktop or to command line" \
-      "S6 Auto Login" "Enable auto login to desktop or to command line" \
-      "S7 Splash Screen" "Choose graphical splash screen or text boot" \
-      "S8 Power LED" "Set behaviour of power LED" \
-      "S9 Browser" "Choose default web browser" \
-      "S10 Admin Password" "Enable or disable sudo password" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "系统选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "S1 无线局域网" "输入 SSID 和密码" \
+      "S2 音频" "通过 HDMI 或 3.5mm 插孔选择音频输出" \
+      "S3 密码" "更改 '$USER' 用户的密码" \
+      "S4 主机名" "在网络上为此计算机设置名称" \
+      "S5 启动" "选择启动到桌面或命令行" \
+      "S6 自动登录" "启用自动登录到桌面或命令行" \
+      "S7 启动画面" "选择图形启动画面或文本启动" \
+      "S8 电源 LED" "设置电源 LED 的行为" \
+      "S9 浏览器" "选择默认网络浏览器" \
+      "S10 管理员密码" "启用或禁用 sudo 密码" \
       3>&1 1>&2 2>&3)
   elif is_live ; then
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "System Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "S1 Wireless LAN" "Enter SSID and passphrase" \
-      "S3 Password" "Change password for the '$USER' user" \
-      "S4 Hostname" "Set name for this computer on a network" \
-      "S5 Boot" "Select boot into desktop or to command line" \
-      "S6 Auto Login" "Enable auto login to desktop or to command line" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "系统选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "S1 无线局域网" "输入 SSID 和密码" \
+      "S3 密码" "更改 '$USER' 用户的密码" \
+      "S4 主机名" "在网络上为此计算机设置名称" \
+      "S5 启动" "选择启动到桌面或命令行" \
+      "S6 自动登录" "启用自动登录到桌面或命令行" \
       3>&1 1>&2 2>&3)
   else
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "System Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "S1 Wireless LAN" "Enter SSID and passphrase" \
-      "S3 Password" "Change password for the '$USER' user" \
-      "S4 Hostname" "Set name for this computer on a network" \
-      "S5 Boot" "Select boot into desktop or to command line" \
-      "S6 Auto Login" "Enable auto login to desktop or to command line" \
-      "S7 Splash Screen" "Choose graphical splash screen or text boot" \
-      "S10 Admin Password" "Enable or disable sudo password" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "系统选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "S1 无线局域网" "输入 SSID 和密码" \
+      "S3 密码" "更改 '$USER' 用户的密码" \
+      "S4 主机名" "在网络上为此计算机设置名称" \
+      "S5 启动" "选择启动到桌面或命令行" \
+      "S6 自动登录" "启用自动登录到桌面或命令行" \
+      "S7 启动画面" "选择图形启动画面或文本启动" \
+      "S10 管理员密码" "启用或禁用 sudo 密码" \
       3>&1 1>&2 2>&3)
   fi
   RET=$?
@@ -3999,8 +4002,8 @@ do_system_menu() {
       S8\ *) do_leds ;;
       S9\ *) do_browser ;;
       S10\ *) do_sudo_pass ;;
-      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
-    esac || whiptail --msgbox "There was an error running option $FUN" 20 60 1
+      *) whiptail --msgbox "程序员错误：无法识别的选项" 20 60 1 ;;
+    esac || whiptail --msgbox "运行选项 $FUN 时出错" 20 60 1
   fi
 }
 
@@ -4008,43 +4011,43 @@ do_display_menu() {
   if is_pi ; then
     if is_wayland; then
       if is_pifour; then
-        FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Display Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-          "D2 Screen Blanking" "Enable/disable screen blanking" \
-          "D4 Composite" "Enable/disable composite output" \
-          "D5 4Kp60 HDMI" "Enable 4Kp60 resolution on HDMI0" \
-          "D6 Onscreen Keyboard" "Enable on-screen keyboard" \
-          "D7 Keyboard Output" "Select monitor used for on-screen keyboard" \
+        FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "显示选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+          "D2 屏幕消隐" "启用/禁用屏幕消隐" \
+          "D4 复合视频" "启用/禁用复合视频输出" \
+          "D5 4Kp60 HDMI" "在 HDMI0 上启用 4Kp60 分辨率" \
+          "D6 屏幕键盘" "启用屏幕键盘" \
+          "D7 键盘输出" "选择用于屏幕键盘的显示器" \
           3>&1 1>&2 2>&3)
       else
-        FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Display Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-          "D2 Screen Blanking" "Enable/disable screen blanking" \
-          "D4 Composite" "Enable/disable composite output" \
-          "D6 Onscreen Keyboard" "Enable on-screen keyboard" \
-          "D7 Keyboard Output" "Select monitor used for on-screen keyboard" \
+        FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "显示选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+          "D2 屏幕消隐" "启用/禁用屏幕消隐" \
+          "D4 复合视频" "启用/禁用复合视频输出" \
+          "D6 屏幕键盘" "启用屏幕键盘" \
+          "D7 键盘输出" "选择用于屏幕键盘的显示器" \
           3>&1 1>&2 2>&3)
       fi
     else
       if is_pifour; then
-        FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Display Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-          "D1 Underscan" "Remove black border around screen" \
-          "D2 Screen Blanking" "Enable/disable screen blanking" \
-          "D3 VNC Resolution" "Set resolution for headless use" \
-          "D4 Composite" "Enable/disable composite output" \
-          "D5 4Kp60 HDMI" "Enable 4Kp60 resolution on HDMI0" \
+        FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "显示选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+          "D1 过扫描" "移除屏幕周围的黑色边框" \
+          "D2 屏幕消隐" "启用/禁用屏幕消隐" \
+          "D3 VNC 分辨率" "为无头使用设置分辨率" \
+          "D4 复合视频" "启用/禁用复合视频输出" \
+          "D5 4Kp60 HDMI" "在 HDMI0 上启用 4Kp60 分辨率" \
           3>&1 1>&2 2>&3)
       else
-        FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Display Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-          "D1 Underscan" "Remove black border around screen" \
-          "D2 Screen Blanking" "Enable/disable screen blanking" \
-          "D3 VNC Resolution" "Set resolution for headless use" \
-          "D4 Composite" "Enable/disable composite output" \
+        FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "显示选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+          "D1 过扫描" "移除屏幕周围的黑色边框" \
+          "D2 屏幕消隐" "启用/禁用屏幕消隐" \
+          "D3 VNC 分辨率" "为无头使用设置分辨率" \
+          "D4 复合视频" "启用/禁用复合视频输出" \
           3>&1 1>&2 2>&3)
       fi
     fi
   else
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Display Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "D1 Underscan" "Remove black border around screen" \
-      "D2 Screen Blanking" "Enable/disable screen blanking" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "显示选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "D1 过扫描" "移除屏幕周围的黑色边框" \
+      "D2 屏幕消隐" "启用/禁用屏幕消隐" \
       3>&1 1>&2 2>&3)
   fi
   RET=$?
@@ -4059,25 +4062,26 @@ do_display_menu() {
       D5\ *) do_pi4video ;;
       D6\ *) do_squeekboard ;;
       D7\ *) do_squeek_output ;;
-      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
-    esac || whiptail --msgbox "There was an error running option $FUN" 20 60 1
+      *) whiptail --msgbox "程序员错误：无法识别的选项" 20 60 1 ;;
+    esac || whiptail --msgbox "运行选项 $FUN 时出错" 20 60 1
   fi
 }
 
 do_interface_menu() {
   if is_pi ; then
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Interfacing Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "I1 SSH" "Enable/disable remote command line access using SSH" \
-      "I2 RPi Connect" "Enable/disable Raspberry Pi Connect" \
-      "I3 VNC" "Enable/disable graphical remote desktop access" \
-      "I4 SPI" "Enable/disable automatic loading of SPI kernel module" \
-      "I5 I2C" "Enable/disable automatic loading of I2C kernel module" \
-      "I6 Serial Port" "Enable/disable shell messages on the serial connection" \
-      "I7 1-Wire" "Enable/disable one-wire interface" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "接口选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "I1 SSH" "使用 SSH 启用/禁用远程命令行访问" \
+      "I2 RPi Connect" "启用/禁用 Raspberry Pi Connect" \
+      "I3 VNC" "启用/禁用图形远程桌面访问" \
+      "I4 SPI" "启用/禁用 SPI 内核模块的自动加载" \
+      "I5 I2C" "启用/禁用 I2C 内核模块的自动加载" \
+      "I6 串口" "启用/禁用串行连接上的 shell 消息" \
+      "I7 1-Wire" "启用/禁用单线接口" \
       3>&1 1>&2 2>&3)
+
   else
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Interfacing Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "I2 SSH" "Enable/disable remote command line access using SSH" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "接口选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "I2 SSH" "使用 SSH 启用/禁用远程命令行访问" \
       3>&1 1>&2 2>&3)
   fi
   RET=$?
@@ -4092,27 +4096,27 @@ do_interface_menu() {
       I5\ *) do_i2c ;;
       I6\ *) if is_pifive ; then do_serial_pi5 ; else do_serial ; fi ;;
       I7\ *) do_onewire ;;
-      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
-    esac || whiptail --msgbox "There was an error running option $FUN" 20 60 1
+      *) whiptail --msgbox "程序员错误：无法识别的选项" 20 60 1 ;;
+    esac || whiptail --msgbox "运行选项 $FUN 时出错" 20 60 1
   fi
 }
 
 do_performance_menu() {
   case "$(get_pi_type)" in
-    [03]) FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Performance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-          "P2 Overlay File System" "Enable/disable read-only file system" \
+    [03]) FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "性能选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+          "P2 覆盖文件系统" "启用/禁用只读文件系统" \
           3>&1 1>&2 2>&3) ;;
-    [12]) FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Performance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-          "P1 Overclock" "Configure CPU overclocking" \
-          "P2 Overlay File System" "Enable/disable read-only file system" \
+    [12]) FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "性能选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+          "P1 超频" "配置 CPU 超频" \
+          "P2 覆盖文件系统" "启用/禁用只读文件系统" \
           3>&1 1>&2 2>&3) ;;
-    4) FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Performance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-          "P2 Overlay File System" "Enable/disable read-only file system" \
-          "P3 Fan" "Set behaviour of GPIO case fan" \
+    4) FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "性能选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+          "P2 覆盖文件系统" "启用/禁用只读文件系统" \
+          "P3 风扇" "设置 GPIO 机箱风扇的行为" \
           3>&1 1>&2 2>&3) ;;
-    *) FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Performance Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-          "P2 Overlay File System" "Enable/disable read-only file system" \
-          "P4 USB Current" "Set USB current limit" \
+    *) FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "性能选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+          "P2 覆盖文件系统" "启用/禁用只读文件系统" \
+          "P4 USB 电流" "设置 USB 电流限制" \
           3>&1 1>&2 2>&3) ;;
   esac
   RET=$?
@@ -4124,17 +4128,17 @@ do_performance_menu() {
       P2\ *) do_overlayfs ;;
       P3\ *) do_fan ;;
       P4\ *) do_usb_current ;;
-      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
-    esac || whiptail --msgbox "There was an error running option $FUN" 20 60 1
+      *) whiptail --msgbox "程序员错误：无法识别的选项" 20 60 1 ;;
+    esac || whiptail --msgbox "运行选项 $FUN 时出错" 20 60 1
   fi
 }
 
 do_internationalisation_menu() {
-  FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Localisation Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-    "L1 Locale" "Configure language and regional settings" \
-    "L2 Timezone" "Configure time zone" \
-    "L3 Keyboard" "Set keyboard layout to match your keyboard" \
-    "L4 WLAN Country" "Set legal wireless channels for your country" \
+  FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "本地化选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+    "L1 区域设置" "配置语言和区域设置" \
+    "L2 时区" "配置时区" \
+    "L3 键盘" "设置键盘布局以匹配您的键盘" \
+    "L4 WLAN 国家" "为您的国家设置合法的无线信道" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -4145,67 +4149,67 @@ do_internationalisation_menu() {
       L2\ *) do_change_timezone ;;
       L3\ *) do_configure_keyboard ;;
       L4\ *) do_wifi_country ;;
-      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
-    esac || whiptail --msgbox "There was an error running option $FUN" 20 60 1
+      *) whiptail --msgbox "程序员错误：无法识别的选项" 20 60 1 ;;
+    esac || whiptail --msgbox "运行选项 $FUN 时出错" 20 60 1
   fi
 }
 
 do_advanced_menu() {
   if is_pifive ; then
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Advanced Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "A1 Expand Filesystem" "Ensures that all of the SD card is available" \
-      "A2 Network Interface Names" "Enable/disable predictable network i/f names" \
-      "A3 Network Proxy Settings" "Configure network proxy settings" \
-      "A4 Boot Order" "Choose boot device priority (SD/net/USB/NVMe)" \
-      "A5 Bootloader Version" "Selects the latest or the factory default bootloader" \
-      "A6 Beta Access" "Select beta or release software repository" \
-      "A7 Wayland" "Switch between X and Wayland backends" \
-      "A8 PCIe Speed" "Set PCIe x1 port speed" \
-      "A9 Network Install UI" "Select display of bootloader network install UI" \
-      "A10 Libliftoff" "Enable/disable libliftoff hardware overlays" \
-      "A11 Shutdown Behaviour" "Configure shutdown behavior" \
-      "A12 Logging" "Set storage location for logs" \
-      "A13 WLAN Power Save" "Enable/disable WLAN power saving" \
-      "A14 Link-local Fallback" "Enable/disable link-local address fallback" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "高级选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "A1 扩展文件系统" "确保 SD 卡的所有空间都可用" \
+      "A2 网络接口名称" "启用/禁用可预测的网络接口名称" \
+      "A3 网络代理设置" "配置网络代理设置" \
+      "A4 启动顺序" "选择启动设备优先级 (SD/net/USB/NVMe)" \
+      "A5 引导加载程序版本" "选择最新或出厂默认的引导加载程序" \
+      "A6 Beta 访问" "选择 beta 或发布软件仓库" \
+      "A7 Wayland" "在 X 和 Wayland 后端之间切换" \
+      "A8 PCIe 速度" "设置 PCIe x1 端口速度" \
+      "A9 网络安装 UI" "选择引导加载程序网络安装 UI 的显示" \
+      "A10 Libliftoff" "启用/禁用 libliftoff 硬件叠加" \
+      "A11 关机行为" "配置关机行为" \
+      "A12 日志记录" "设置日志的存储位置" \
+      "A13 WLAN 省电" "启用/禁用 WLAN 省电" \
+      "A14 链路本地回退" "启用/禁用链路本地地址回退" \
       3>&1 1>&2 2>&3)
   elif is_pifour ; then
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Advanced Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "A1 Expand Filesystem" "Ensures that all of the SD card is available" \
-      "A2 Network Interface Names" "Enable/disable predictable network i/f names" \
-      "A3 Network Proxy Settings" "Configure network proxy settings" \
-      "A4 Boot Order" "Choose boot device priority (SD/net/USB/NVMe)" \
-      "A5 Bootloader Version" "Selects the latest or the factory default bootloader" \
-      "A6 Beta Access" "Select beta or release software repository" \
-      "A7 Wayland" "Switch between X and Wayland backends" \
-      "A9 Network Install UI" "Select display of bootloader network install UI" \
-      "A10 Libliftoff" "Enable/disable libliftoff hardware overlays" \
-      "A11 Shutdown Behaviour" "Configure shutdown behavior" \
-      "A12 Logging" "Set storage location for logs" \
-      "A13 WLAN Power Save" "Enable/disable WLAN power saving" \
-      "A14 Link-local Fallback" "Enable/disable link-local address fallback" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "高级选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "A1 扩展文件系统" "确保 SD 卡的所有空间都可用" \
+      "A2 网络接口名称" "启用/禁用可预测的网络接口名称" \
+      "A3 网络代理设置" "配置网络代理设置" \
+      "A4 启动顺序" "选择启动设备优先级 (SD/net/USB/NVMe)" \
+      "A5 引导加载程序版本" "选择最新或出厂默认的引导加载程序" \
+      "A6 Beta 访问" "选择 beta 或发布软件仓库" \
+      "A7 Wayland" "在 X 和 Wayland 后端之间切换" \
+      "A9 网络安装 UI" "选择引导加载程序网络安装 UI 的显示" \
+      "A10 Libliftoff" "启用/禁用 libliftoff 硬件叠加" \
+      "A11 关机行为" "配置关机行为" \
+      "A12 日志记录" "设置日志的存储位置" \
+      "A13 WLAN 省电" "启用/禁用 WLAN 省电" \
+      "A14 链路本地回退" "启用/禁用链路本地地址回退" \
       3>&1 1>&2 2>&3)
   elif is_pi ; then
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Advanced Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "A1 Expand Filesystem" "Ensures that all of the SD card is available" \
-      "A2 Network Interface Names" "Enable/disable predictable network i/f names" \
-      "A3 Network Proxy Settings" "Configure network proxy settings" \
-      "A6 Beta Access" "Select beta or release software repository" \
-      "A7 Wayland" "Switch between X and Wayland backends" \
-      "A10 Libliftoff" "Enable/disable libliftoff hardware overlays" \
-      "A12 Logging" "Set storage location for logs" \
-      "A13 WLAN Power Save" "Enable/disable WLAN power saving" \
-      "A14 Link-local Fallback" "Enable/disable link-local address fallback" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "高级选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "A1 扩展文件系统" "确保 SD 卡的所有空间都可用" \
+      "A2 网络接口名称" "启用/禁用可预测的网络接口名称" \
+      "A3 网络代理设置" "配置网络代理设置" \
+      "A6 Beta 访问" "选择 beta 或发布软件仓库" \
+      "A7 Wayland" "在 X 和 Wayland 后端之间切换" \
+      "A10 Libliftoff" "启用/禁用 libliftoff 硬件叠加" \
+      "A12 日志记录" "设置日志的存储位置" \
+      "A13 WLAN 省电" "启用/禁用 WLAN 省电" \
+      "A14 链路本地回退" "启用/禁用链路本地地址回退" \
       3>&1 1>&2 2>&3)
   else
-    FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Advanced Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-      "A2 Network Interface Names" "Enable/disable predictable network i/f names" \
-      "A3 Network Proxy Settings" "Configure network proxy settings" \
-      "A6 Beta Access" "Select beta or release software repository" \
-      "A7 Wayland" "Switch between X and Wayland backends" \
-      "A10 Libliftoff" "Enable/disable libliftoff hardware overlays" \
-      "A12 Logging" "Set storage location for logs" \
-      "A13 WLAN Power Save" "Enable/disable WLAN power saving" \
-      "A14 Link-local Fallback" "Enable/disable link-local address fallback" \
+    FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "高级选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+      "A2 网络接口名称" "启用/禁用可预测的网络接口名称" \
+      "A3 网络代理设置" "配置网络代理设置" \
+      "A6 Beta 访问" "选择 beta 或发布软件仓库" \
+      "A7 Wayland" "在 X 和 Wayland 后端之间切换" \
+      "A10 Libliftoff" "启用/禁用 libliftoff 硬件叠加" \
+      "A12 日志记录" "设置日志的存储位置" \
+      "A13 WLAN 省电" "启用/禁用 WLAN 省电" \
+      "A14 链路本地回退" "启用/禁用链路本地地址回退" \
       3>&1 1>&2 2>&3)
   fi
   RET=$?
@@ -4227,19 +4231,19 @@ do_advanced_menu() {
       A12\ *) do_journald_storage ;;
       A13\ *) do_wifi_power_save ;;
       A14\ *) do_link_local_fallback ;;
-      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
-    esac || whiptail --msgbox "There was an error running option $FUN" 20 60 1
+      *) whiptail --msgbox "程序员错误：无法识别的选项" 20 60 1 ;;
+    esac || whiptail --msgbox "运行选项 $FUN 时出错" 20 60 1
   fi
 }
 
 do_proxy_menu() {
-  FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Network Proxy Settings" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Back --ok-button Select \
-    "P1 All" "Set the same proxy for all schemes" \
-    "P2 HTTP" "Set the HTTP proxy" \
-    "P3 HTTPS" "Set the HTTPS/SSL proxy" \
-    "P4 FTP" "Set the FTP proxy" \
-    "P5 RSYNC" "Set the RSYNC proxy" \
-    "P6 Exceptions" "Set addresses for which a proxy server should not be used" \
+  FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "网络代理设置" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
+    "P1 全部" "为所有方案设置相同的代理" \
+    "P2 HTTP" "设置 HTTP 代理" \
+    "P3 HTTPS" "设置 HTTPS/SSL 代理" \
+    "P4 FTP" "设置 FTP 代理" \
+    "P5 RSYNC" "设置 RSYNC 代理" \
+    "P6 例外" "设置不应使用代理服务器的地址" \
     3>&1 1>&2 2>&3)
   RET=$?
   if [ $RET -eq 1 ]; then
@@ -4252,19 +4256,19 @@ do_proxy_menu() {
       P4\ *) do_proxy ftp ;;
       P5\ *) do_proxy rsync ;;
       P6\ *) do_proxy no;;
-      *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
-    esac || whiptail --msgbox "There was an error running option $FUN" 20 60 1
+      *) whiptail --msgbox "程序员错误：无法识别的选项" 20 60 1 ;;
+    esac || whiptail --msgbox "运行选项 $FUN 时出错" 20 60 1
   fi
 }
 
 #
-# Interactive use loop
+# 交互式使用循环
 #
 if [ "$INTERACTIVE" = True ]; then
   [ -e $CONFIG ] || touch $CONFIG
   calc_wt_size
   while [ "$USER" = "root" ] || [ -z "$USER" ]; do
-    if ! USER=$(whiptail --inputbox "raspi-config could not determine the default user.\\n\\nWhat user should these settings apply to?" 20 60 pi 3>&1 1>&2 2>&3); then
+    if ! USER=$(whiptail --inputbox "raspi-config 无法确定默认用户。\\n\\n这些设置应该应用于哪个用户？" 20 60 pi 3>&1 1>&2 2>&3); then
       return 0
     fi
   done
@@ -4276,25 +4280,25 @@ if [ "$INTERACTIVE" = True ]; then
       else
         FMEMSIZE="$(expr $MEMSIZE / 1024)GB"
       fi
-      FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --backtitle "$(cat /proc/device-tree/model), ${FMEMSIZE}" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
-        "1 System Options" "Configure system settings" \
-        "2 Display Options" "Configure display settings" \
-        "3 Interface Options" "Configure connections to peripherals" \
-        "4 Performance Options" "Configure performance settings" \
-        "5 Localisation Options" "Configure language and regional settings" \
-        "6 Advanced Options" "Configure advanced settings" \
-        "8 Update" "Update this tool to the latest version" \
-        "9 About raspi-config" "Information about this configuration tool" \
+      FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --backtitle "$(cat /proc/device-tree/model), ${FMEMSIZE}" --menu "设置选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 完成 --ok-button 选择 \
+        "1 系统选项" "配置系统设置" \
+        "2 显示选项" "配置显示设置" \
+        "3 接口选项" "配置外设连接" \
+        "4 性能选项" "配置性能设置" \
+        "5 本地化选项" "配置语言和区域设置" \
+        "6 高级选项" "配置高级设置" \
+        "8 更新" "将此工具更新到最新版本" \
+        "9 关于 raspi-config" "关于此配置工具的信息" \
         3>&1 1>&2 2>&3)
     else
-      FUN=$(whiptail --title "Raspberry Pi Software Configuration Tool (raspi-config)" --menu "Setup Options" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button Finish --ok-button Select \
-        "1 System Options" "Configure system settings" \
-        "2 Display Options" "Configure display settings" \
-        "3 Interface Options" "Configure connections to peripherals" \
-        "5 Localisation Options" "Configure language and regional settings" \
-        "6 Advanced Options" "Configure advanced settings" \
-        "8 Update" "Update this tool to the latest version" \
-        "9 About raspi-config" "Information about this configuration tool" \
+      FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "设置选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 完成 --ok-button 选择 \
+        "1 系统选项" "配置系统设置" \
+        "2 显示选项" "配置显示设置" \
+        "3 接口选项" "配置外设连接" \
+        "5 本地化选项" "配置语言和区域设置" \
+        "6 高级选项" "配置高级设置" \
+        "8 更新" "将此工具更新到最新版本" \
+        "9 关于 raspi-config" "关于此配置工具的信息" \
         3>&1 1>&2 2>&3)
     fi
     RET=$?
@@ -4310,8 +4314,8 @@ if [ "$INTERACTIVE" = True ]; then
         6\ *) do_advanced_menu ;;
         8\ *) do_update ;;
         9\ *) do_about ;;
-        *) whiptail --msgbox "Programmer error: unrecognized option" 20 60 1 ;;
-      esac || whiptail --msgbox "There was an error running option $FUN" 20 60 1
+        *) whiptail --msgbox "程序员错误：无法识别的选项" 20 60 1 ;;
+      esac || whiptail --msgbox "运行选项 $FUN 时出错" 20 60 1
     else
       exit 1
     fi
