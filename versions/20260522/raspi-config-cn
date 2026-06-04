@@ -1,8 +1,11 @@
 #!/bin/sh
+# raspi-config-cn - 汉化版 raspi-config (版本: 20260522)
+# BASE_VERSION=20260522
 # Part of raspi-config https://github.com/RPi-Distro/raspi-config
 #
 # See LICENSE file for copyright and license details
 # shellcheck disable=SC2120
+# 安装后通过 'sudo raspi-config-cn' 或 'sudo smp' 运行
 
 INTERACTIVE="${INTERACTIVE:-True}"
 ASK_TO_REBOOT=0
@@ -57,7 +60,7 @@ else
   CMDLINE=/proc/cmdline
 fi
 
-# 针对 Pi 1、2 和 0 的测试都是针对特定板子的...
+# 针对 Pi 1、2、0、CM4、CM5、500 和 x00 的测试都是针对特定板子的...
 
 is_pione() {
   if grep -q "^Revision\s*:\s*00[0-9a-fA-F][0-9a-fA-F]$" /proc/cpuinfo; then
@@ -79,7 +82,28 @@ is_pizero() {
   return $?
 }
 
-# ...而针对 Pi 3 和 4 的测试只是测试处理器类型，因此也会找到 CM3、CM4、Zero 2 等。
+is_cmfour() {
+  # 仅匹配 CM4，不匹配 CM4S
+  grep -q "^Revision\s*:\s*[ 123][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]14[0-9a-fA-F]$" /proc/cpuinfo
+  return $?
+}
+
+is_cmfive() {
+  grep -q "^Revision\s*:\s*[ 123][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]1[8aA][0-9a-fA-F]$" /proc/cpuinfo
+  return $?
+}
+
+is_pi500() {
+  grep -q "^Revision\s*:\s*[ 123][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]19[0-9a-fA-F]$" /proc/cpuinfo
+  return $?
+}
+
+is_pihundred() {
+  grep -q "^Revision\s*:\s*[ 123][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]1[39][0-9a-fA-F]$" /proc/cpuinfo
+  return $?
+}
+
+# ...而针对 Pi 3、4 和 5 的测试只是测试处理器类型，因此也会找到 CM3、CM4、Zero 2、500 等。
 
 is_pithree() {
   grep -q "^Revision\s*:\s*[ 123][0-9a-fA-F][0-9a-fA-F]2[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]$" /proc/cpuinfo
@@ -93,16 +117,6 @@ is_pifour() {
 
 is_pifive() {
   grep -q "^Revision\s*:\s*[ 123][0-9a-fA-F][0-9a-fA-F]4[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]$" /proc/cpuinfo
-  return $?
-}
-
-is_cmfive() {
-  grep -q "^Revision\s*:\s*[ 123][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]1[8aA][0-9a-fA-F]$" /proc/cpuinfo
-  return $?
-}
-
-is_pi500() {
-  grep -q "^Revision\s*:\s*[ 123][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]19[0-9a-fA-F]$" /proc/cpuinfo
   return $?
 }
 
@@ -126,6 +140,22 @@ get_pi_type() {
 
 gpu_has_mmu() {
   if is_pifour || is_pifive ; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+has_composite_video() {
+  if is_pihundred || is_cmfive; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+has_nvme() {
+  if is_pifive || is_cmfour; then
     return 0
   else
     return 1
@@ -1626,13 +1656,24 @@ get_composite() {
 }
 
 do_composite() {
+  if ! has_composite_video; then
+    if [ "$INTERACTIVE" = True ]; then
+      whiptail --msgbox "此型号的树莓派没有复合视频输出" 20 60 1
+    fi
+    return 1
+  fi
   CURRENT=$(get_composite)
   DEFAULT=--defaultno
   if [ $CURRENT -eq 0 ]; then
     DEFAULT=
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --yesno "您想启用复合视频输出吗？警告 - 这将禁用 HDMI 输出。" $DEFAULT 20 60 2
+    if is_pifive; then
+      QUESTION="您想启用复合视频输出吗？"
+    else
+      QUESTION="您想启用复合视频输出吗？警告 - 这将禁用 HDMI 输出。"
+    fi
+    whiptail --yesno "$QUESTION" $DEFAULT 20 60 2
     RET=$?
   else
     RET=$1
@@ -1731,6 +1772,12 @@ get_fan_temp() {
 }
 
 do_fan() {
+  if is_pihundred; then
+    if [ "$INTERACTIVE" = True ]; then
+      whiptail --msgbox "此型号的树莓派没有 GPIO 机箱风扇" 20 60 1
+    fi
+    return 1
+  fi
   GNOW=$(get_fan_gpio)
   TNOW=$(get_fan_temp)
   if [ "$INTERACTIVE" = True ]; then
@@ -2135,62 +2182,67 @@ do_network_install_ui() {
   fi
  }
 
-do_libliftoff() {
+get_ab_firmware() {
+  SPIDEV="spi10"
+  if grep -q "^dtoverlay=no$SPIDEV" "$CONFIG" ; then
+    echo 0
+  else
+    echo 1
+  fi
+}
+
+do_ab_firmware() {
+  if ! is_pifive ; then
+    return 1
+  fi
+  SPIDEV="spi10"
+  if [ "$(get_ab_firmware)" -eq 0 ]; then
+    CURRENT="B1"
+  else
+    CURRENT="B2"
+  fi
   if [ "$INTERACTIVE" = True ]; then
-    RET=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "libliftoff 选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-        "L1 禁用" "禁用 libliftoff 硬件叠加" \
-        "L2 启用" "启用 libliftoff 硬件叠加" \
-        3>&1 1>&2 2>&3)
+    RET=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --default-item "$CURRENT" \
+      --menu "AB 固件更新" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
+      "B1" "启用 AB 固件更新（警告：Flashrom 无法用于固件更新）" \
+      "B2" "禁用 AB 固件更新" \
+      3>&1 1>&2 2>&3)
   else
     RET=$1
     true
   fi
   if [ $? -eq 0 ]; then
     case "$RET" in
-      L1*)
-        LIBLIFTOFF_ENABLED=0
-        STATUS="已禁用"
+      B1*)
+        if [ "$CURRENT" = "B2" ]; then
+          ASK_TO_REBOOT=1
+        fi
+        sed -i -e "s/^#dtoverlay=no$SPIDEV.*/dtoverlay=no$SPIDEV/" "$CONFIG"
+        if ! grep -q "^dtoverlay=no$SPIDEV" "$CONFIG"; then
+          if ! tail -1 "$CONFIG" | grep -q "\\[all\\]" ; then
+            printf "[all]\n" >> "$CONFIG"
+          fi
+          printf 'dtoverlay=no%s\n' "$SPIDEV" >> "$CONFIG"
+        fi
+        STATUS=已启用
         ;;
-      L2*)
-        LIBLIFTOFF_ENABLED=1
-        STATUS="已启用"
+      B2*)
+        if [ "$CURRENT" = "B1" ]; then
+          ASK_TO_REBOOT=1
+        fi
+        sed -i -e "s/^dtoverlay=no$SPIDEV.*/#dtoverlay=no$SPIDEV/" "$CONFIG"
+        STATUS=已禁用
         ;;
       *)
-        whiptail --msgbox "程序员错误，无法识别的 libliftoff 选项" 20 60 2
+        whiptail --msgbox "程序员错误，无法识别的选项" 20 60 2
         return 1
         ;;
     esac
-
-    # 如果需要，创建配置目录和/或环境文件
-    if [ -z $HOMEDIR ]; then
-      whiptail --msgbox "未知的用户主目录" 20 60 2
-      return 1
-    fi
-    LABWC_DIR="$HOMEDIR/.config/labwc"
-    if [ ! -e $LABWC_DIR ]; then
-      mkdir -p $LABWC_DIR
-      chown $USER:$USER $HOMEDIR/.config $LABWC_DIR
-    fi
-    if [ ! -e $LABWCENV_FILE ]; then
-      touch $LABWCENV_FILE
-      chown $USER:$USER $LABWCENV_FILE
-    fi
-
-
-    # 如果环境文件中已经有 libliftoff 行，则替换它。
-    # 否则，添加一个。
-    if grep -q WLR_DRM_FORCE_LIBLIFTOFF $LABWCENV_FILE; then
-      sed -i "s/^.*WLR_DRM_FORCE_LIBLIFTOFF.*$/WLR_DRM_FORCE_LIBLIFTOFF=$LIBLIFTOFF_ENABLED/" $LABWCENV_FILE
-    else
-      echo "WLR_DRM_FORCE_LIBLIFTOFF=$LIBLIFTOFF_ENABLED" >>$LABWCENV_FILE
-    fi
-
-    ASK_TO_REBOOT=1
   else
     return 0
   fi
   if [ "$INTERACTIVE" = True ]; then
-    whiptail --msgbox "libliftoff 已$STATUS" 20 60 1
+    whiptail --msgbox "AB 固件更新已$STATUS" 20 60 1
   fi
 }
 
@@ -2258,7 +2310,7 @@ do_boot_order() {
     sed $EECFG -i -e "/NET_BOOT_MAX_RETRIES/d"
     case "$BOOTOPT" in
       B1*)
-        if is_pifive; then
+        if has_nvme; then
            ORD=0xf461
         else
            ORD=0xf41
@@ -2271,7 +2323,7 @@ do_boot_order() {
         STATUS="SD 卡"
         ;;
       B2*)
-        if is_pifive; then
+        if has_nvme; then
            ORD=0xf146
         else
            ORD=0xf14
@@ -4166,11 +4218,11 @@ do_advanced_menu() {
       "A7 Wayland" "在 X 和 Wayland 后端之间切换" \
       "A8 PCIe 速度" "设置 PCIe x1 端口速度" \
       "A9 网络安装 UI" "选择引导加载程序网络安装 UI 的显示" \
-      "A10 Libliftoff" "启用/禁用 libliftoff 硬件叠加" \
-      "A11 关机行为" "配置关机行为" \
-      "A12 日志记录" "设置日志的存储位置" \
-      "A13 WLAN 省电" "启用/禁用 WLAN 省电" \
-      "A14 链路本地回退" "启用/禁用链路本地地址回退" \
+      "A10 关机行为" "配置关机行为" \
+      "A11 日志记录" "设置日志的存储位置" \
+      "A12 WLAN 省电" "启用/禁用 WLAN 省电" \
+      "A13 链路本地回退" "启用/禁用链路本地地址回退" \
+      "A14 AB 固件更新" "启用/禁用 AB 固件更新" \
       3>&1 1>&2 2>&3)
   elif is_pifour ; then
     FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "高级选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
@@ -4182,11 +4234,10 @@ do_advanced_menu() {
       "A6 Beta 访问" "选择 beta 或发布软件仓库" \
       "A7 Wayland" "在 X 和 Wayland 后端之间切换" \
       "A9 网络安装 UI" "选择引导加载程序网络安装 UI 的显示" \
-      "A10 Libliftoff" "启用/禁用 libliftoff 硬件叠加" \
-      "A11 关机行为" "配置关机行为" \
-      "A12 日志记录" "设置日志的存储位置" \
-      "A13 WLAN 省电" "启用/禁用 WLAN 省电" \
-      "A14 链路本地回退" "启用/禁用链路本地地址回退" \
+      "A10 关机行为" "配置关机行为" \
+      "A11 日志记录" "设置日志的存储位置" \
+      "A12 WLAN 省电" "启用/禁用 WLAN 省电" \
+      "A13 链路本地回退" "启用/禁用链路本地地址回退" \
       3>&1 1>&2 2>&3)
   elif is_pi ; then
     FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "高级选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
@@ -4195,10 +4246,9 @@ do_advanced_menu() {
       "A3 网络代理设置" "配置网络代理设置" \
       "A6 Beta 访问" "选择 beta 或发布软件仓库" \
       "A7 Wayland" "在 X 和 Wayland 后端之间切换" \
-      "A10 Libliftoff" "启用/禁用 libliftoff 硬件叠加" \
-      "A12 日志记录" "设置日志的存储位置" \
-      "A13 WLAN 省电" "启用/禁用 WLAN 省电" \
-      "A14 链路本地回退" "启用/禁用链路本地地址回退" \
+      "A11 日志记录" "设置日志的存储位置" \
+      "A12 WLAN 省电" "启用/禁用 WLAN 省电" \
+      "A13 链路本地回退" "启用/禁用链路本地地址回退" \
       3>&1 1>&2 2>&3)
   else
     FUN=$(whiptail --title "树莓派软件配置工具 (raspi-config)" --menu "高级选项" $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT --cancel-button 返回 --ok-button 选择 \
@@ -4206,10 +4256,9 @@ do_advanced_menu() {
       "A3 网络代理设置" "配置网络代理设置" \
       "A6 Beta 访问" "选择 beta 或发布软件仓库" \
       "A7 Wayland" "在 X 和 Wayland 后端之间切换" \
-      "A10 Libliftoff" "启用/禁用 libliftoff 硬件叠加" \
-      "A12 日志记录" "设置日志的存储位置" \
-      "A13 WLAN 省电" "启用/禁用 WLAN 省电" \
-      "A14 链路本地回退" "启用/禁用链路本地地址回退" \
+      "A11 日志记录" "设置日志的存储位置" \
+      "A12 WLAN 省电" "启用/禁用 WLAN 省电" \
+      "A13 链路本地回退" "启用/禁用链路本地地址回退" \
       3>&1 1>&2 2>&3)
   fi
   RET=$?
@@ -4226,11 +4275,11 @@ do_advanced_menu() {
       A7\ *) do_wayland ;;
       A8\ *) do_pci ;;
       A9\ *) do_network_install_ui ;;
-      A10\ *) do_libliftoff ;;
-      A11\ *) do_power_off_on_halt ;;
-      A12\ *) do_journald_storage ;;
-      A13\ *) do_wifi_power_save ;;
-      A14\ *) do_link_local_fallback ;;
+      A10\ *) do_power_off_on_halt ;;
+      A11\ *) do_journald_storage ;;
+      A12\ *) do_wifi_power_save ;;
+      A13\ *) do_link_local_fallback ;;
+      A14\ *) do_ab_firmware ;;
       *) whiptail --msgbox "程序员错误：无法识别的选项" 20 60 1 ;;
     esac || whiptail --msgbox "运行选项 $FUN 时出错" 20 60 1
   fi

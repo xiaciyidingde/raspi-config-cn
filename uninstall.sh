@@ -66,16 +66,13 @@ confirm_uninstall() {
 
 remove_files() {
     print_info "正在删除文件..."
-    
-    # 删除主文件
+
     if [ -f "$INSTALL_DIR/$TARGET_FILE" ]; then
         rm -f "$INSTALL_DIR/$TARGET_FILE"
         print_success "已删除 $TARGET_FILE"
     fi
-    
-    # 删除软链接
+
     if [ -L "$INSTALL_DIR/$SYMLINK_NAME" ]; then
-        # 检查软链接是否指向我们的文件
         if [ "$(readlink -f "$INSTALL_DIR/$SYMLINK_NAME")" = "$INSTALL_DIR/$TARGET_FILE" ]; then
             rm -f "$INSTALL_DIR/$SYMLINK_NAME"
             print_success "已删除软链接 $SYMLINK_NAME"
@@ -83,7 +80,7 @@ remove_files() {
             print_warning "软链接 $SYMLINK_NAME 不是由本项目创建，已跳过"
         fi
     fi
-    
+
     if ls "$INSTALL_DIR/$TARGET_FILE.bak."* 1> /dev/null 2>&1; then
         print_info "发现备份文件，是否一并删除?"
         read -p "删除备份文件? (y/N): " -n 1 -r
@@ -115,7 +112,7 @@ main() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  raspi-config 中文版卸载程序 v1.0"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
     check_root
     check_installed
     confirm_uninstall
