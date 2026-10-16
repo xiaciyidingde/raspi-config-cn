@@ -9,6 +9,12 @@ INSTALL_DIR="/usr/local/bin"
 TARGET_FILE="raspi-config-cn"
 SYMLINK_NAME="smp"
 
+if [ -t 0 ]; then
+    IS_TTY=1
+else
+    IS_TTY=0
+fi
+
 print_info()    { echo -e "${BLUE}[信息]${NC} $1"; }
 print_success() { echo -e "${GREEN}[成功]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[警告]${NC} $1"; }
@@ -132,20 +138,34 @@ install_file() {
     print_success "安装完成 (版本 $ver)"
 }
 
-prompt_install_latest() {
-    local latest_ver="$1"
-    print_warning "当前不支持 raspi-config 版本: $INSTALLED_VER"
-    print_info "最新可用的汉化版本是: $latest_ver"
-    read -p "是否安装最新汉化版本? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        install_file "$latest_ver"
-        create_symlink
-        show_completion
-        exit 0
+decide_target_version() {
+    if is_supported_version "$INSTALLED_VER"; then
+        TARGET_VER="$INSTALLED_VER"
+        VERSION_MISMATCH=0
+    else
+        TARGET_VER=$(get_latest_supported_version)
+        VERSION_MISMATCH=1
     fi
-    print_info "安装已取消"
-    exit 0
+}
+
+confirm_install() {
+    if [ "$VERSION_MISMATCH" != "1" ]; then
+        return 0
+    fi
+
+    print_warning "当前 raspi-config 版本 $INSTALLED_VER 暂无精确匹配的汉化版"
+    print_warning "将安装最新汉化版 $TARGET_VER（基于该版本翻译，系统新版本的功能可能缺失或未汉化）"
+
+    if [ "$IS_TTY" = "1" ]; then
+        read -p "是否继续安装? (Y/n): " -n 1 -r || true
+        echo
+        if [[ $REPLY =~ ^[Nn]$ ]]; then
+            print_info "安装已取消"
+            exit 0
+        fi
+    else
+        print_info "非交互模式，自动安装最新汉化版"
+    fi
 }
 
 create_symlink() {
@@ -159,6 +179,11 @@ show_completion() {
     echo; echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     print_success "raspi-config 中文版安装完成！"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    if [ "$VERSION_MISMATCH" = "1" ]; then
+        echo
+        print_warning "注意：汉化版基于 $TARGET_VER，当前系统 raspi-config 为 $INSTALLED_VER"
+        print_warning "官方新增功能可能未汉化或不可用"
+    fi
     echo; echo "使用方法："
     echo "  sudo raspi-config-cn    # 启动中文版"
     [ "$SKIP_SYMLINK" != "1" ] && echo "  sudo smp                # 使用简短命令"
@@ -184,23 +209,29 @@ main() {
 
     print_info "检测到 raspi-config 版本: $INSTALLED_VER"
 
+    decide_target_version
+
     CURRENT_CN_VER=$(get_installed_cn_version)
+    if [ -n "$CURRENT_CN_VER" ] && [ "$CURRENT_CN_VER" = "$TARGET_VER" ]; then
+        if [ "$CURRENT_CN_VER" = "$INSTALLED_VER" ]; then
+            print_success "当前已安装匹配的汉化版本 ($CURRENT_CN_VER)"
+        else
+            print_success "当前已安装最新可用汉化版本 ($CURRENT_CN_VER)，无需重复安装"
+        fi
+        create_symlink
+        exit 0
+    fi
+
     if [ -z "$CURRENT_CN_VER" ]; then
         print_info "未检测到已安装的中文版，进入安装流程"
-    elif [ "$CURRENT_CN_VER" = "$INSTALLED_VER" ]; then
-        print_success "当前已安装匹配的汉化版本 ($CURRENT_CN_VER)"
-        exit 0
     else
         print_info "已安装的汉化版本为: $CURRENT_CN_VER"
-        print_info "与当前 raspi-config 版本不一致，进入安装流程"
+        print_info "目标汉化版本为: $TARGET_VER"
     fi
 
-    if ! is_supported_version "$INSTALLED_VER"; then
-        LATEST_VER=$(get_latest_supported_version)
-        prompt_install_latest "$LATEST_VER"
-    fi
+    confirm_install
 
-    install_file "$INSTALLED_VER"
+    install_file "$TARGET_VER"
     create_symlink
     show_completion
 }

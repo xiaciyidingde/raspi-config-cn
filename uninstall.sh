@@ -15,6 +15,12 @@ INSTALL_DIR="/usr/local/bin"
 TARGET_FILE="raspi-config-cn"
 SYMLINK_NAME="smp"
 
+if [ -t 0 ]; then
+    IS_TTY=1
+else
+    IS_TTY=0
+fi
+
 print_info() {
     echo -e "${BLUE}[信息]${NC} $1"
 }
@@ -56,11 +62,15 @@ confirm_uninstall() {
         echo "  - $INSTALL_DIR/$SYMLINK_NAME (软链接)"
     fi
     echo
-    read -p "确认卸载? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_info "卸载已取消"
-        exit 0
+    if [ "$IS_TTY" = "1" ]; then
+        read -p "确认卸载? (y/N): " -n 1 -r || true
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_info "卸载已取消"
+            exit 0
+        fi
+    else
+        print_info "非交互模式，跳过确认直接卸载"
     fi
 }
 
@@ -82,12 +92,16 @@ remove_files() {
     fi
 
     if ls "$INSTALL_DIR/$TARGET_FILE.bak."* 1> /dev/null 2>&1; then
-        print_info "发现备份文件，是否一并删除?"
-        read -p "删除备份文件? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            rm -f "$INSTALL_DIR/$TARGET_FILE.bak."*
-            print_success "已删除备份文件"
+        if [ "$IS_TTY" = "1" ]; then
+            print_info "发现备份文件，是否一并删除?"
+            read -p "删除备份文件? (y/N): " -n 1 -r || true
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                rm -f "$INSTALL_DIR/$TARGET_FILE.bak."*
+                print_success "已删除备份文件"
+            fi
+        else
+            print_info "发现备份文件，非交互模式默认保留"
         fi
     fi
 }
