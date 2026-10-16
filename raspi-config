@@ -26,7 +26,6 @@ fi
 INIT="$(ps --no-headers -o comm 1)"
 
 HOMEDIR="$(getent passwd "$USER" | cut -d: -f6)"
-WAYFIRE_FILE="$HOMEDIR/.config/wayfire.ini"
 LABWCENV_FILE="$HOMEDIR/.config/labwc/environment"
 LABWCAST_FILE="$HOMEDIR/.config/labwc/autostart"
 
@@ -148,6 +147,14 @@ is_live() {
   return $?
 }
 
+get_is_live() {
+  if is_live; then
+    echo 1
+  else
+    echo 0
+  fi
+}
+
 is_ssh() {
   if pstree -p | grep -qE ".*sshd.*\($$\)"; then
     return 0
@@ -165,20 +172,13 @@ is_pulseaudio() {
   return $?
 }
 
-is_wayfire() {
-  pgrep wayfire > /dev/null
-  return $?
-}
-
 is_labwc() {
   pgrep labwc > /dev/null
   return $?
 }
 
 is_wayland() {
-  if is_wayfire; then
-    return 0
-  elif is_labwc; then
+  if is_labwc; then
     return 0
   else
     return 1
@@ -214,6 +214,14 @@ is_installed() {
     return 1
   else
     return 0
+  fi
+}
+
+get_installed() {
+  if is_installed $1; then
+    echo 1
+  else
+    echo 0
   fi
 }
 
@@ -505,15 +513,7 @@ do_overscan_kms() {
 }
 
 get_blanking() {
-  if is_wayfire; then
-    if ! grep -q dpms_timeout $WAYFIRE_FILE ; then
-      echo 1
-    elif ! grep -q "dpms_timeout.*-1" $WAYFIRE_FILE ; then
-      echo 0
-    else
-      echo 1
-    fi
-  elif is_labwc; then
+  if is_labwc; then
     if [ -e $LABWCAST_FILE ] && grep -q swayidle $LABWCAST_FILE ; then
       echo 0
     else
@@ -535,41 +535,7 @@ do_blanking() {
     DEFAULT=
     CURRENT=1
   fi
-  if is_wayfire; then
-    if [ "$INTERACTIVE" = True ]; then
-      whiptail --yesno "Would you like to enable screen blanking?" $DEFAULT 20 60 2
-      RET=$?
-    else
-      RET=$1
-    fi
-    if [ "$RET" -eq 0 ] ; then
-      if grep -q dpms_timeout $WAYFIRE_FILE ; then
-        sed -i 's/dpms_timeout.*/dpms_timeout=600/' $WAYFIRE_FILE
-      else
-        if grep -q "\[idle\]" $WAYFIRE_FILE ; then
-          sed -i 's/\[idle]/[idle]\ndpms_timeout=600/' $WAYFIRE_FILE
-        else
-          echo '\n[idle]\ndpms_timeout=600' >> $WAYFIRE_FILE
-          chown $USER:$USER $WAYFIRE_FILE
-        fi
-      fi
-      STATUS=enabled
-    elif [ "$RET" -eq 1 ]; then
-      if grep -q dpms_timeout $WAYFIRE_FILE ; then
-        sed -i 's/dpms_timeout.*/dpms_timeout=-1/' $WAYFIRE_FILE
-      else
-        if grep -q "\[idle\]" $WAYFIRE_FILE ; then
-          sed -i 's/\[idle]/[idle]\ndpms_timeout=-1/' $WAYFIRE_FILE
-        else
-          echo '\n[idle]\ndpms_timeout=-1' >> $WAYFIRE_FILE
-          chown $USER:$USER $WAYFIRE_FILE
-        fi
-      fi
-      STATUS=disabled
-    else
-      return "$RET"
-    fi
-  elif is_labwc; then
+  if is_labwc; then
     if [ "$INTERACTIVE" = True ]; then
       whiptail --yesno "Would you like to enable screen blanking?" $DEFAULT 20 60 2
       RET=$?
@@ -633,43 +599,6 @@ do_change_pass() {
   whiptail --msgbox "You will now be asked to enter a new password for the $USER user" 20 60 1
   passwd $USER &&
   whiptail --msgbox "Password changed successfully" 20 60 1
-}
-
-update_wayfire_keyboard() {
-  if ! is_wayfire ; then
-    return
-  fi
-  MODEL=$(grep XKBMODEL /etc/default/keyboard | cut -d= -f2 | tr -d '"')
-  LAYOUT=$(grep XKBLAYOUT /etc/default/keyboard | cut -d= -f2 | tr -d '"')
-  VARIANT=$(grep XKBVARIANT /etc/default/keyboard | cut -d= -f2 | tr -d '"')
-  OPTIONS=$(grep XKBOPTIONS /etc/default/keyboard | cut -d= -f2 | tr -d '"')
-  UFILE=$WAYFIRE_FILE
-  if [ ! -e $UFILE ] && [ -e /etc/wayfire/template.ini ] ; then
-    CONFIG_DIR="$(dirname "$UFILE")"
-    if ! [ -d "$CONFIG_DIR" ]; then
-      install -o "$USER" -g "$USER" -d "$CONFIG_DIR"
-    fi
-    cp /etc/wayfire/template.ini $UFILE
-    chown $USER:$USER $UFILE
-  fi
-  if [ -e $UFILE ] ; then
-    grep -q "\\[input\\]" $UFILE || printf "\n[input]" >> $UFILE
-    if grep -q xkb_model $UFILE ; then sed -i s/xkb_model.*/xkb_model=$MODEL/ $UFILE ; else sed -i s/\\[input\\]/[input]\\nxkb_model=$MODEL/ $UFILE ; fi
-    if grep -q xkb_layout $UFILE ; then sed -i s/xkb_layout.*/xkb_layout=$LAYOUT/ $UFILE ; else sed -i s/\\[input\\]/[input]\\nxkb_layout=$LAYOUT/ $UFILE ; fi
-    if grep -q xkb_variant $UFILE ; then sed -i s/xkb_variant.*/xkb_variant=$VARIANT/ $UFILE ; else sed -i s/\\[input\\]/[input]\\nxkb_variant=$VARIANT/ $UFILE ; fi
-    if grep -q xkb_options $UFILE ; then sed -i s/xkb_options.*/xkb_options=$OPTIONS/ $UFILE ; else sed -i s/\\[input\\]/[input]\\nxkb_options=$OPTIONS/ $UFILE ; fi
-  fi
-  UFILE="/usr/share/greeter.ini"
-  if [ ! -e $UFILE ] && [ -e /etc/wayfire/gtemplate.ini ] ; then
-    cp /etc/wayfire/gtemplate.ini $UFILE
-  fi
-  if [ -e $UFILE ] ; then
-    grep -q "\\[input\\]" $UFILE || printf "\n[input]" >> $UFILE
-    if grep -q xkb_model $UFILE ; then sed -i s/xkb_model.*/xkb_model=$MODEL/ $UFILE ; else sed -i s/\\[input\\]/[input]\\nxkb_model=$MODEL/ $UFILE ; fi
-    if grep -q xkb_layout $UFILE ; then sed -i s/xkb_layout.*/xkb_layout=$LAYOUT/ $UFILE ; else sed -i s/\\[input\\]/[input]\\nxkb_layout=$LAYOUT/ $UFILE ; fi
-    if grep -q xkb_variant $UFILE ; then sed -i s/xkb_variant.*/xkb_variant=$VARIANT/ $UFILE ; else sed -i s/\\[input\\]/[input]\\nxkb_variant=$VARIANT/ $UFILE ; fi
-    if grep -q xkb_options $UFILE ; then sed -i s/xkb_options.*/xkb_options=$OPTIONS/ $UFILE ; else sed -i s/\\[input\\]/[input]\\nxkb_options=$OPTIONS/ $UFILE ; fi
-  fi
 }
 
 update_labwc_keyboard() {
@@ -770,7 +699,6 @@ do_configure_keyboard() {
     sed -i /etc/default/keyboard -e "s/^XKBLAYOUT.*/XKBLAYOUT=\"$KEYMAP\"/"
     dpkg-reconfigure -f noninteractive keyboard-configuration
   fi
-  update_wayfire_keyboard
   update_labwc_keyboard
   update_squeekboard restart
   if [ "$INIT" = "systemd" ]; then
@@ -786,7 +714,6 @@ do_change_keyboard_rc_gui () {
   grep -q XKBLAYOUT /etc/default/keyboard && sed -i "s/XKBLAYOUT=.*/XKBLAYOUT=\"$2\"/g" /etc/default/keyboard || echo "XKBLAYOUT=\"$2\"" >> /etc/default/keyboard
   grep -q XKBVARIANT /etc/default/keyboard && sed -i "s/XKBVARIANT=.*/XKBVARIANT=\"$3\"/g" /etc/default/keyboard || echo "XKBVARIANT=\"$3\"" >> /etc/default/keyboard
   grep -q XKBOPTIONS /etc/default/keyboard && sed -i "s/XKBOPTIONS=.*/XKBOPTIONS=\"$4\"/g" /etc/default/keyboard || echo "XKBOPTIONS=\"$4\"" >> /etc/default/keyboard
-  update_wayfire_keyboard
   update_labwc_keyboard
   update_squeekboard restart
   if ! is_wayland ; then
@@ -1862,7 +1789,7 @@ do_fan() {
 }
 
 get_browser() {
-  echo $(update-alternatives --display x-www-browser | grep currently | cut -d " " -f 7 | cut -d / -f 4)
+  echo $(LC_ALL=C update-alternatives --display x-www-browser | grep currently | cut -d " " -f 7 | cut -d / -f 4)
 }
 
 do_browser() {
@@ -2465,7 +2392,9 @@ get_boot_splash() {
       echo 1
     fi
   else
-    if grep -q "GRUB_CMDLINE_LINUX_DEFAULT.*splash" /etc/default/grub ; then
+    if is_live ; then
+      echo 0
+    elif grep -q "GRUB_CMDLINE_LINUX_DEFAULT.*splash" /etc/default/grub ; then
       echo 0
     else
       echo 1
@@ -3084,20 +3013,10 @@ do_resolution() {
 }
 
 get_vnc_resolution() {
-  if is_wayfire ; then
-    W=$(grep ^headless_width $WAYFIRE_FILE | grep -o "[0-9]*")
-    H=$(grep ^headless_height $WAYFIRE_FILE | grep -o "[0-9]*")
-    if [ -n "$W" ] && [ -n "$H" ] ; then
-      echo $W"x"$H
-    else
-      echo "1280x720"
-    fi
+  if [ -e /etc/xdg/autostart/vnc_xrandr.desktop ] ; then
+    grep fb /etc/xdg/autostart/vnc_xrandr.desktop | cut -f 15 -d ' '
   else
-    if [ -e /etc/xdg/autostart/vnc_xrandr.desktop ] ; then
-      grep fb /etc/xdg/autostart/vnc_xrandr.desktop | cut -f 15 -d ' '
-    else
-      echo ""
-    fi
+    echo ""
   fi
 }
 
@@ -3117,21 +3036,7 @@ do_vnc_resolution() {
   if [ $RET -eq 1 ]; then
     return 0
   elif [ $RET -eq 0 ]; then
-    if is_wayfire ; then
-      W=$(echo "$FUN" | cut -d x -f 1)
-      H=$(echo "$FUN" | cut -d x -f 2)
-      if grep -q ^headless_width $WAYFIRE_FILE ; then
-        sed -i "s/headless_width.*/headless_width = $W/" $WAYFIRE_FILE
-        sed -i "s/headless_height.*/headless_height = $H/" $WAYFIRE_FILE
-      else
-        if grep -q "\[output\]" $WAYFIRE_FILE ; then
-          sed -i "s/\[output]/[output]\nheadless_width = $W\nheadless_height = $H/" $WAYFIRE_FILE
-        else
-          printf '\n[output]\nheadless_width = %d\nheadless_height = %d\n' "$W" "$H" >> $WAYFIRE_FILE
-        fi
-      fi
-    else
-      cat > /etc/xdg/autostart/vnc_xrandr.desktop << EOF
+    cat > /etc/xdg/autostart/vnc_xrandr.desktop << EOF
 [Desktop Entry]
 Type=Application
 Name=vnc_xrandr
@@ -3139,7 +3044,6 @@ Comment=Set resolution for VNC
 NoDisplay=true
 Exec=sh -c "if ! (xrandr | grep -q -w connected) ; then /usr/bin/xrandr --fb $FUN ; fi"
 EOF
-    fi
     if [ "$INTERACTIVE" = True ]; then
       whiptail --msgbox "The resolution is set to $FUN" 20 60 1
       ASK_TO_REBOOT=1
@@ -3266,9 +3170,9 @@ do_wifi_ssid_passphrase() {
   else
     IFACE="$(list_wlan_interfaces | head -n 1)"
     if [ "$HIDDEN" -ne 0 ]; then
-      nmcli device wifi connect "$SSID" password "$PASSPHRASE" ifname "${IFACE}" hidden true | grep -q "activated"
+      LC_ALL=C nmcli device wifi connect "$SSID" password "$PASSPHRASE" ifname "${IFACE}" hidden true | grep -q "activated"
     else
-      nmcli device wifi connect "$SSID" password "$PASSPHRASE" ifname "${IFACE}" | grep -q "activated"
+      LC_ALL=C nmcli device wifi connect "$SSID" password "$PASSPHRASE" ifname "${IFACE}" | grep -q "activated"
     fi
     RET=$((RET + $?))
   fi
@@ -3943,6 +3847,13 @@ nonint() {
   "$@"
 }
 
+batch() {
+  for cmd in "$@"
+  do
+    echo "$cmd" $($cmd)
+  done
+}
+
 #
 # Command line options for non-interactive use
 #
@@ -3970,7 +3881,7 @@ do
     do_apply_os_config
     exit $?
     ;;
-  nonint)
+  nonint | batch)
     INTERACTIVE=False
     #echo "$@"
     "$@"
